@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-void load_torch_model(const char* model_path);
+unsigned load_torch_model(const char* model_path);
 float predict_with_torch_model(int input1, int input2);
 
 #ifdef __cplusplus

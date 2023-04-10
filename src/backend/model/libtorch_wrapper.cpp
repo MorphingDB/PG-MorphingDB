@@ -6,14 +6,16 @@
 
 static torch::jit::script::Module torch_model;
 
-void load_torch_model(const char* model_path) {
+unsigned load_torch_model(const char* model_path) {
     try {
         torch_model = torch::jit::load(model_path);
-        std::cout << "Model loaded successfully" << std::endl;
+        // std::cout << "Model loaded successfully" << std::endl;
+        return 0;
     }
     catch (const std::exception& e) {
-        std::cerr << "Error loading the model: " << e.what() << std::endl;
-        throw;
+        // std::cerr << "Error loading the model: " << e.what() << std::endl;
+        // throw;
+        return 1;
     }
 }
 

@@ -78,6 +78,7 @@
 #include "utils/timeout.h"
 #include "utils/timestamp.h"
 #include "mb/pg_wchar.h"
+#include "model/libtorch_wrapper.h"
 
 
 /* ----------------
@@ -4104,6 +4105,18 @@ PostgresMain(int argc, char *argv[],
 
 	if (!ignore_till_sync)
 		send_ready_for_query = true;	/* initially, or after error */
+
+
+	// load model test 
+	if(load_torch_model("/home/postgres/resnet18.pt") == 0){
+		elog(INFO, "load model successed ");
+	}else {
+		elog(INFO, "load model failed");
+	}
+
+	elog(INFO,"get command : %s", input_message.data);
+
+
 
 	/*
 	 * Non-error queries loop here.

@@ -9,24 +9,26 @@ LIBTORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/cs
 override CPPFLAGS := -I. $(CPPFLAGS) $(LIBTORCH_INCLUDES)
 
 OBJS = libtorch_wrapper.o
+	
+include $(top_srcdir)/src/backend/common.mk
 
 
-all: all-lib
+# all: all-lib
 
-# Shared library stuff
-include $(top_srcdir)/src/Makefile.shlib
+# # Shared library stuff
+# include $(top_srcdir)/src/Makefile.shlib
 
-install: all installdirs
-	$(INSTALL_STLIB) $(shlib) '$(DESTDIR)$(pkglibdir)/$(shlib)'
+# install: all installdirs
+# 	$(INSTALL_STLIB) $(shlib) '$(DESTDIR)$(pkglibdir)/$(shlib)'
 
-installdirs:
-	$(MKDIR_P) '$(DESTDIR)$(pkglibdir)'
+# installdirs:
+# 	$(MKDIR_P) '$(DESTDIR)$(pkglibdir)'
 
-uninstall:
-	rm -f '$(DESTDIR)$(pkglibdir)/$(shlib)'
+# uninstall:
+# 	rm -f '$(DESTDIR)$(pkglibdir)/$(shlib)'
 
-clean distclean maintainer-clean:
-	rm -f $(OBJS) $(shlib)
+# clean distclean maintainer-clean:
+# 	rm -f $(OBJS) $(shlib)
 
 
 
