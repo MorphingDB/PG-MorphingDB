@@ -7,12 +7,10 @@
 subdir = src/backend/utils/adt
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
-LIBTORCH_DIR = /home/postgres/libtorch
-LIBTORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 
 
 
-override CPPFLAGS := -I. -I$(srcdir) $(CPPFLAGS) $(LIBTORCH_INCLUDES)
+override CPPFLAGS := -I. -I$(srcdir) $(CPPFLAGS) 
 
 # keep this list arranged alphabetically or it gets to be a mess
 OBJS = acl.o amutils.o arrayfuncs.o array_expanded.o array_selfuncs.o \
@@ -37,7 +35,7 @@ OBJS = acl.o amutils.o arrayfuncs.o array_expanded.o array_selfuncs.o \
 	tsquery_op.o tsquery_rewrite.o tsquery_util.o tsrank.o \
 	tsvector.o tsvector_op.o tsvector_parser.o \
 	txid.o uuid.o varbit.o varchar.o varlena.o version.o \
-	windowfuncs.o xid.o xml.o libtorch_wrapper.o
+	windowfuncs.o xid.o xml.o
 
 jsonpath_scan.c: FLEXFLAGS = -CF -p -p
 jsonpath_scan.c: FLEX_NO_BACKUP=yes
@@ -54,8 +52,6 @@ like.o: like.c like_match.c
 
 varlena.o: varlena.c levenshtein.c
 
-torch_model_wrapper.o: torch_model_wrapper.cpp torch_model_wrapper.h
-	$(COMPILE.cpp) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 
 include $(top_srcdir)/src/backend/common.mk
