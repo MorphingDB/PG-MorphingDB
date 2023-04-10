@@ -4209,6 +4209,8 @@ PostgresMain(int argc, char *argv[],
 		 * (3) read a command (loop blocks here)
 		 */
 		firstchar = ReadCommand(&input_message);
+		// 打印command，测试log
+		elog(INFO,"get command : %s", input_message.data);
 
 		/*
 		 * (4) turn off the idle-in-transaction timeout, if active.  We do
