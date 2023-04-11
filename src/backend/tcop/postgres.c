@@ -4110,6 +4110,9 @@ PostgresMain(int argc, char *argv[],
 	// load model test 
 	if(load_torch_model("/home/postgres/resnet18.pt") == 0){
 		elog(INFO, "load model successed ");
+		float x = predict_with_torch_model();
+		elog(INFO, "use model to predict %f", x);
+
 	}else {
 		elog(INFO, "load model failed");
 	}

@@ -19,10 +19,11 @@ unsigned load_torch_model(const char* model_path) {
     }
 }
 
-float predict_with_torch_model(int input1, int input2) {
+float predict_with_torch_model() {
     std::vector<torch::jit::IValue> inputs;
-    inputs.push_back(torch::tensor({input1, input2}));
+    inputs.push_back(torch::ones({1,3,224,224}));
+
 
     at::Tensor output = torch_model.forward(inputs).toTensor();
-    return output.item<float>();
+    return *output.data_ptr<float>();
 }
