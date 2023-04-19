@@ -737,7 +737,7 @@ PG_CRC32C_OBJS = @PG_CRC32C_OBJS@
 LIBS := -lpgcommon -lpgport $(LIBS)
 
 # libtorch settings
-LIBTORCH_DIR = /home/postgres/libtorch
+LIBTORCH_DIR = ${top_builddir}/third_party/libtorch
 LIBTORCH_CPPFLAGS = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 LIBTORCH_LDFLAGS = -L$(LIBTORCH_DIR)/lib -ltorch -lc10 -Wl,-rpath=$(LIBTORCH_DIR)/lib
 
