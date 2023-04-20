@@ -1138,6 +1138,12 @@ exec_simple_query(const char *query_string)
 		 */
 		oldcontext = MemoryContextSwitchTo(MessageContext);
 
+
+        if (Debug_print_parse)
+            elog_node_display(LOG, "parse tree", parsetree,
+                              Debug_pretty_print);
+
+
 		querytree_list = pg_analyze_and_rewrite(parsetree, query_string,
 												NULL, 0, NULL);
 
@@ -4108,7 +4114,7 @@ PostgresMain(int argc, char *argv[],
 
 
 	// load model test 
-	if(load_torch_model("/home/postgres/resnet18.pt") == 0){
+	if(load_torch_model("/home/pby/resnet18.pt") == 0){
 		elog(INFO, "load model successed ");
 		float x = predict_with_torch_model();
 		elog(INFO, "use model to predict %f", x);

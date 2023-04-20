@@ -717,6 +717,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %token		NOT_LA NULLS_LA WITH_LA
 
 
+%debug 
 /* Precedence: lowest to highest */
 %nonassoc	SET				/* see relation_expr_opt_alias */
 %left		UNION EXCEPT

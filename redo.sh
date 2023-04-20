@@ -1,4 +1,4 @@
-make uninstall
+make uninstall 
 make clean
-./configure --prefix=/home/postgres/pgsql
-make
+sudo make -j16
+make install -j16
