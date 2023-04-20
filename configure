@@ -19773,6 +19773,16 @@ else
 esac
 fi
 
+# 下载libtorch
+if [[ ! -d "./third_party/libtorch" ]]; then
+  wget -P ./third_party https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.0.0%2Bcpu.zip
+  if [[ $? -ne 0 ]]; then
+    echo "download libtorch error!"
+    exit 1
+  fi
+  unzip -d ./third_party/ ./third_party/*.zip 
+  rm ./third_party/*.zip
+fi
 
 as_nl='
 '

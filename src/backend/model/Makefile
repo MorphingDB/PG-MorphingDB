@@ -2,7 +2,7 @@
 subdir = src/backend/model
 top_builddir = ../../..
 include $(top_builddir)/src/Makefile.global
-LIBTORCH_DIR = /home/postgres/libtorch
+LIBTORCH_DIR = ${top_builddir}/third_party/libtorch
 LIBTORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 
 
