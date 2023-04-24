@@ -34,6 +34,7 @@
 #include "commands/copy.h"
 #include "commands/createas.h"
 #include "commands/dbcommands.h"
+#include "commands/mdcommands.h"
 #include "commands/defrem.h"
 #include "commands/discard.h"
 #include "commands/event_trigger.h"
@@ -577,6 +578,12 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 		case T_GrantRoleStmt:
 			/* no event triggers for global objects */
 			GrantRole((GrantRoleStmt *) parsetree);
+			break;
+
+		case T_CreatemdStmt:
+		// 	确保在进行特定操作时，不处于事务块中
+			PreventInTransactionBlock(isTopLevel, "CREATE MODEL");
+			createmd(pstate, (CreatemdStmt *) parsetree);
 			break;
 
 		case T_CreatedbStmt:
@@ -2588,6 +2595,10 @@ CreateCommandTag(Node *parsetree)
 
 		case T_DoStmt:
 			tag = "DO";
+			break;
+		
+		case T_CreatemdStmt:
+			tag = "CREATE MODEL";
 			break;
 
 		case T_CreatedbStmt:

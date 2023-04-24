@@ -2,28 +2,46 @@
 #include <torch/torch.h>
 #include <torch/script.h>
 
+// #include "utils/elog.h"
 #include "model/libtorch_wrapper.h"
 
-static torch::jit::script::Module torch_model;
+static std::unordered_map<std::string, torch::jit::script::Module> models;
 
-unsigned load_torch_model(const char* model_path) {
+bool loadTorchModel(const char* modelName, const char* modelPath) {
     try {
-        torch_model = torch::jit::load(model_path);
-        // std::cout << "Model loaded successfully" << std::endl;
-        return 0;
+        torch::jit::script::Module model = torch::jit::load(modelPath);
+        models[modelName] = model;
+        return true;
     }
     catch (const std::exception& e) {
-        // std::cerr << "Error loading the model: " << e.what() << std::endl;
-        // throw;
-        return 1;
+        return false;
     }
 }
 
-float predict_with_torch_model() {
+
+void unloadTorchModel(const char* modelName) {
+    auto md = models.find(modelName);
+    if(md != models.end()) {
+        models.erase(md);
+    }
+}
+
+void debug_models(){
+    for(auto &[k, v] : models) {
+        printf("model name : %s \n", k.c_str());
+        // elog(INFO, "model name : %s\n", k) ;
+    }
+}
+
+float predictWithTorchModel(const char* modelName) {
+    auto md = models.find(modelName);
+    if(md == models.end()) {
+        return 0.0;
+    }
+
     std::vector<torch::jit::IValue> inputs;
     inputs.push_back(torch::ones({1,3,224,224}));
 
-
-    at::Tensor output = torch_model.forward(inputs).toTensor();
+    at::Tensor output = md->second.forward(inputs).toTensor();
     return *output.data_ptr<float>();
 }

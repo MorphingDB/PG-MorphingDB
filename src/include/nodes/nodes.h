@@ -342,6 +342,8 @@ typedef enum NodeTag
 	T_ViewStmt,
 	T_LoadStmt,
 	T_CreateDomainStmt,
+	T_CreatemdStmt,
+	T_DropmdStmt,
 	T_CreatedbStmt,
 	T_DropdbStmt,
 	T_VacuumStmt,

@@ -3101,6 +3101,18 @@ typedef struct LoadStmt
 	char	   *filename;		/* file to load */
 } LoadStmt;
 
+
+/* ----------------------
+ *		Createmd Statement
+ * ----------------------
+ */
+typedef struct CreatemdStmt
+{
+	NodeTag		type;
+	char	   *mdname;			/* name of model to create */
+	char	   *modelPath;		/* the model path used to load */
+} CreatemdStmt;
+
 /* ----------------------
  *		Createdb Statement
  * ----------------------

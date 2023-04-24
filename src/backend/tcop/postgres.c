@@ -4114,16 +4114,16 @@ PostgresMain(int argc, char *argv[],
 
 
 	// load model test 
-	if(load_torch_model("/home/pby/resnet18.pt") == 0){
-		elog(INFO, "load model successed ");
-		float x = predict_with_torch_model();
-		elog(INFO, "use model to predict %f", x);
+	// if(loadTorchModel("md-test","/home/pby/resnet18.pt")){
+	// 	elog(INFO, "load model successed ");
+		// float x = predict_with_torch_model();
+		// elog(INFO, "use model to predict %f", x);
 
-	}else {
-		elog(INFO, "load model failed");
-	}
+	// }else {
+	// 	elog(INFO, "load model failed");
+	// }
 
-	elog(INFO,"get command : %s", input_message.data);
+	// elog(INFO,"get command : %s", input_message.data);
 
 
 
@@ -4133,6 +4133,9 @@ PostgresMain(int argc, char *argv[],
 
 	for (;;)
 	{
+		debug_models();
+		float x = predictWithTorchModel("model_1");
+		elog(INFO, "use model to predict %f", x);
 		/*
 		 * At top of loop, reset extended-query-message flag, so that any
 		 * errors encountered in "idle" state don't provoke skip.

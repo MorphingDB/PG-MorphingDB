@@ -5,8 +5,10 @@
 extern "C" {
 #endif
 
-unsigned load_torch_model(const char* model_path);
-float predict_with_torch_model();
+bool loadTorchModel(const char* modelName, const char* modelPath);
+void unloadTorchModel(const char* modelName);
+float predictWithTorchModel(const char* modelName);
+void debug_models();
 
 #ifdef __cplusplus
 }

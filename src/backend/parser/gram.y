@@ -262,7 +262,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateFdwStmt CreateForeignServerStmt CreateForeignTableStmt
 		CreateAssertionStmt CreateTransformStmt CreateTrigStmt CreateEventTrigStmt
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
-		CreatedbStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
+		CreatedbStmt CreatemdStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
 		DropOpClassStmt DropOpFamilyStmt DropPLangStmt DropStmt
 		DropCastStmt DropRoleStmt
 		DropdbStmt DropTableSpaceStmt
@@ -342,7 +342,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <chr>		enable_trigger
 
 %type <str>		copy_file_name
-				database_name access_method_clause access_method attr_name
+				database_name model_name model_path access_method_clause access_method attr_name
 				table_access_method_clause name cursor_name file_name
 				index_name opt_index_name cluster_index_specification
 
@@ -657,7 +657,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	LEADING LEAKPROOF LEAST LEFT LEVEL LIKE LIMIT LISTEN LOAD LOCAL
 	LOCALTIME LOCALTIMESTAMP LOCATION LOCK_P LOCKED LOGGED
 
-	MAPPING MATCH MATERIALIZED MAXVALUE METHOD MINUTE_P MINVALUE MODE MONTH_P MOVE
+	MAPPING MATCH MATERIALIZED MAXVALUE METHOD MINUTE_P MINVALUE MODE MODEL MONTH_P MOVE
 
 	NAME_P NAMES NATIONAL NATURAL NCHAR NEW NEXT NO NONE
 	NOT NOTHING NOTIFY NOTNULL NOWAIT NULL_P NULLIF
@@ -896,6 +896,7 @@ stmt :
 			| CreateUserStmt
 			| CreateUserMappingStmt
 			| CreatedbStmt
+			| CreatemdStmt
 			| DeallocateStmt
 			| DeclareCursorStmt
 			| DefineStmt
@@ -10071,6 +10072,23 @@ LoadStmt:	LOAD file_name
 		;
 
 
+	
+/*****************************************************************************
+ *
+ *		CREATE MODEL
+ *
+ *****************************************************************************/	
+
+CreatemdStmt:
+			CREATE MODEL model_name model_path
+				{
+					CreatemdStmt *n = makeNode(CreatemdStmt);
+					n->mdname = $3;
+					n->modelPath = $4;
+					$$ = (Node *)n;
+				}
+		;
+
 /*****************************************************************************
  *
  *		CREATE DATABASE
@@ -14747,6 +14765,12 @@ name_list:	name
 
 name:		ColId									{ $$ = $1; };
 
+model_name:
+			ColId									{ $$ = $1; };
+
+model_path:
+			file_name								{ $$ = $1; };			
+
 database_name:
 			ColId									{ $$ = $1; };
 
@@ -15163,6 +15187,7 @@ unreserved_keyword:
 			| MINUTE_P
 			| MINVALUE
 			| MODE
+			| MODEL
 			| MONTH_P
 			| MOVE
 			| NAME_P
