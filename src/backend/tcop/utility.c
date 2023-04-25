@@ -586,6 +586,13 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 			createmd(pstate, (CreatemdStmt *) parsetree);
 			break;
 
+
+		case T_DropmdStmt:
+		// 	确保在进行特定操作时，不处于事务块中
+			PreventInTransactionBlock(isTopLevel, "DROP MODEL");
+			dropmd(pstate, (DropmdStmt *) parsetree);
+			break;
+
 		case T_CreatedbStmt:
 			/* no event triggers for global objects */
 			PreventInTransactionBlock(isTopLevel, "CREATE DATABASE");

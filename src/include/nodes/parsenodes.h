@@ -3113,6 +3113,17 @@ typedef struct CreatemdStmt
 	char	   *modelPath;		/* the model path used to load */
 } CreatemdStmt;
 
+
+/* ----------------------
+ *		Dropmd Statement
+ * ----------------------
+ */
+typedef struct DropmdStmt
+{
+	NodeTag		type;
+	char	   *mdname;			/* name of model to drop */
+} DropmdStmt;
+
 /* ----------------------
  *		Createdb Statement
  * ----------------------

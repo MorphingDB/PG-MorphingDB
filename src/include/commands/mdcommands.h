@@ -8,5 +8,6 @@
 #include "nodes/parsenodes.h"
 
 extern void createmd(ParseState *pstate, const CreatemdStmt *stmt);
+extern void dropmd(ParseState *pstate, const DropmdStmt *stmt);
 
 #endif							/* MDCOMMANDS_H */

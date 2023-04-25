@@ -20,3 +20,9 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
 				 errmsg("model \"%s\" create failed", stmt->mdname)));
     }
 }
+
+
+void 
+dropmd(ParseState *pstate, const DropmdStmt *stmt){
+    unloadTorchModel(stmt->mdname);
+}

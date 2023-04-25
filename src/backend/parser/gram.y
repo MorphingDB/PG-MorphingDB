@@ -264,7 +264,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
 		CreatedbStmt CreatemdStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
 		DropOpClassStmt DropOpFamilyStmt DropPLangStmt DropStmt
-		DropCastStmt DropRoleStmt
+		DropCastStmt DropRoleStmt DropmdStmt
 		DropdbStmt DropTableSpaceStmt
 		DropTransformStmt
 		DropUserMappingStmt ExplainStmt FetchStmt
@@ -914,6 +914,7 @@ stmt :
 			| DropTransformStmt
 			| DropRoleStmt
 			| DropUserMappingStmt
+			| DropmdStmt
 			| DropdbStmt
 			| ExecuteStmt
 			| ExplainStmt
@@ -10085,6 +10086,22 @@ CreatemdStmt:
 					CreatemdStmt *n = makeNode(CreatemdStmt);
 					n->mdname = $3;
 					n->modelPath = $4;
+					$$ = (Node *)n;
+				}
+		;
+
+
+/*****************************************************************************
+ *
+ *		DROP MODEL
+ *
+ *****************************************************************************/	
+
+DropmdStmt:
+			DROP MODEL model_name 
+				{
+					DropmdStmt *n = makeNode(DropmdStmt);
+					n->mdname = $3;
 					$$ = (Node *)n;
 				}
 		;
