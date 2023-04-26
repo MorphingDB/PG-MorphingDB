@@ -74,6 +74,7 @@
 #include "catalog/pg_ts_template.h"
 #include "catalog/pg_type.h"
 #include "catalog/pg_user_mapping.h"
+#include "catalog/pg_model_info.h"
 #include "utils/rel.h"
 #include "utils/catcache.h"
 #include "utils/syscache.h"
@@ -502,6 +503,28 @@ static const struct cachedesc cacheinfo[] = {
 		1,
 		{
 			Anum_pg_language_oid,
+			0,
+			0,
+			0
+		},
+		4
+	},
+	{ModelInfoRelationId,		/* MODELNAME */
+		ModelInfoNameIndex,
+		1,
+		{
+			Anum_pg_model_info_modelname,
+			0,
+			0,
+			0
+		},
+		4
+	},
+	{ModelInfoRelationId,		/* MODELNAME */
+		ModelInfoOidIndex,
+		1,
+		{
+			Anum_pg_model_info_oid,
 			0,
 			0,
 			0
