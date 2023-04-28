@@ -586,6 +586,10 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 			createmd(pstate, (CreatemdStmt *) parsetree);
 			break;
 
+		case T_UpdatemdStmt:
+			PreventInTransactionBlock(isTopLevel, "CREATE MODEL");
+			updatemd(pstate, (CreatemdStmt *) parsetree);
+			break;
 
 		case T_DropmdStmt:
 		// 	确保在进行特定操作时，不处于事务块中
@@ -2606,6 +2610,14 @@ CreateCommandTag(Node *parsetree)
 		
 		case T_CreatemdStmt:
 			tag = "CREATE MODEL";
+			break;
+
+		case T_DropmdStmt:
+			tag = "DROP MODEL";
+			break;
+
+		case T_UpdatemdStmt:
+			tag = "UPDATE MODEL";
 			break;
 
 		case T_CreatedbStmt:

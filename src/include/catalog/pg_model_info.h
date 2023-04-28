@@ -12,12 +12,18 @@
 
 CATALOG(pg_model_info,2023,ModelInfoRelationId) 
 {
-	Oid			oid;			/* oid */
-
+	
 	/* model name */
 	NameData	modelname;
-    NameData    modelpath;
-
+	
+#ifdef CATALOG_VARLEN	
+	timestamp   createtime;
+	text    	modelpath;
+	text 		query;
+	timestamp   updatetime; /* nullable的字段需要放到复合类型下面 */
+	/*  注意：注释只能够是这种格式  */
+#endif
+    
 } FormData_pg_model_info;
 
 

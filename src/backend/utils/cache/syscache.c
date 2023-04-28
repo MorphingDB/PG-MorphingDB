@@ -520,17 +520,6 @@ static const struct cachedesc cacheinfo[] = {
 		},
 		4
 	},
-	{ModelInfoRelationId,		/* MODELNAME */
-		ModelInfoOidIndex,
-		1,
-		{
-			Anum_pg_model_info_oid,
-			0,
-			0,
-			0
-		},
-		4
-	},
 	{NamespaceRelationId,		/* NAMESPACENAME */
 		NamespaceNameIndexId,
 		1,

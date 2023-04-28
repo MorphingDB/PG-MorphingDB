@@ -9,5 +9,6 @@
 
 extern void createmd(ParseState *pstate, const CreatemdStmt *stmt);
 extern void dropmd(ParseState *pstate, const DropmdStmt *stmt);
+extern void updatemd(ParseState *pstate, const UpdatemdStmt *stmt);
 
 #endif							/* MDCOMMANDS_H */

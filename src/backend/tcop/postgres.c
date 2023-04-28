@@ -4133,9 +4133,9 @@ PostgresMain(int argc, char *argv[],
 
 	for (;;)
 	{
-		debug_models();
-		float x = predictWithTorchModel("model_1");
-		elog(INFO, "use model to predict %f", x);
+		// debug_models();
+		// float x = predictWithTorchModel("model_1");
+		// elog(INFO, "use model to predict %f", x);
 		/*
 		 * At top of loop, reset extended-query-message flag, so that any
 		 * errors encountered in "idle" state don't provoke skip.
@@ -4235,7 +4235,7 @@ PostgresMain(int argc, char *argv[],
 		 */
 		firstchar = ReadCommand(&input_message);
 		// 打印command，测试log
-		elog(INFO,"get command : %s", input_message.data);
+		// elog(INFO,"get command : %s", input_message.data);
 
 		/*
 		 * (4) turn off the idle-in-transaction timeout, if active.  We do

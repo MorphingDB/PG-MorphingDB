@@ -274,7 +274,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		RemoveFuncStmt RemoveOperStmt RenameStmt RevokeStmt RevokeRoleStmt
 		RuleActionStmt RuleActionStmtOrEmpty RuleStmt
 		SecLabelStmt SelectStmt TransactionStmt TruncateStmt
-		UnlistenStmt UpdateStmt VacuumStmt
+		UnlistenStmt UpdatemdStmt UpdateStmt VacuumStmt
 		VariableResetStmt VariableSetStmt VariableShowStmt
 		ViewStmt CheckPointStmt CreateConversionStmt
 		DeallocateStmt PrepareStmt ExecuteStmt
@@ -657,7 +657,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	LEADING LEAKPROOF LEAST LEFT LEVEL LIKE LIMIT LISTEN LOAD LOCAL
 	LOCALTIME LOCALTIMESTAMP LOCATION LOCK_P LOCKED LOGGED
 
-	MAPPING MATCH MATERIALIZED MAXVALUE METHOD MINUTE_P MINVALUE MODE MODEL MONTH_P MOVE
+	MAPPING MATCH MATERIALIZED MAXVALUE METHOD MINUTE_P MINVALUE MODE MODEL MODIFY MONTH_P MOVE
 
 	NAME_P NAMES NATIONAL NATURAL NCHAR NEW NEXT NO NONE
 	NOT NOTHING NOTIFY NOTNULL NOWAIT NULL_P NULLIF
@@ -667,7 +667,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	ORDER ORDINALITY OTHERS OUT_P OUTER_P
 	OVER OVERLAPS OVERLAY OVERRIDING OWNED OWNER
 
-	PARALLEL PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POLICY
+	PATH PARALLEL PARSER PARTIAL PARTITION PASSING PASSWORD PLACING PLANS POLICY
 	POSITION PRECEDING PRECISION PRESERVE PREPARE PREPARED PRIMARY
 	PRIOR PRIVILEGES PROCEDURAL PROCEDURE PROCEDURES PROGRAM PUBLICATION
 
@@ -944,6 +944,7 @@ stmt :
 			| TransactionStmt
 			| TruncateStmt
 			| UnlistenStmt
+			| UpdatemdStmt
 			| UpdateStmt
 			| VacuumStmt
 			| VariableResetStmt
@@ -10076,16 +10077,33 @@ LoadStmt:	LOAD file_name
 	
 /*****************************************************************************
  *
+ *		UPDATE MODEL
+ *
+ *****************************************************************************/	
+
+UpdatemdStmt:
+			MODIFY MODEL model_name PATH model_path
+				{
+					UpdatemdStmt *n = makeNode(UpdatemdStmt);
+					n->mdname = $3;
+					n->modelPath = $5;
+					$$ = (Node *)n;
+				}
+		;
+
+	
+/*****************************************************************************
+ *
  *		CREATE MODEL
  *
  *****************************************************************************/	
 
 CreatemdStmt:
-			CREATE MODEL model_name model_path
+			CREATE MODEL model_name PATH model_path
 				{
 					CreatemdStmt *n = makeNode(CreatemdStmt);
 					n->mdname = $3;
-					n->modelPath = $4;
+					n->modelPath = $5;
 					$$ = (Node *)n;
 				}
 		;
@@ -15205,6 +15223,7 @@ unreserved_keyword:
 			| MINVALUE
 			| MODE
 			| MODEL
+			| MODIFY
 			| MONTH_P
 			| MOVE
 			| NAME_P
@@ -15236,6 +15255,7 @@ unreserved_keyword:
 			| PARTITION
 			| PASSING
 			| PASSWORD
+			| PATH
 			| PLANS
 			| POLICY
 			| PRECEDING

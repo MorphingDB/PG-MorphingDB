@@ -3124,6 +3124,18 @@ typedef struct DropmdStmt
 	char	   *mdname;			/* name of model to drop */
 } DropmdStmt;
 
+
+/* ----------------------
+ *		Updatemd Statement
+ * ----------------------
+ */
+typedef struct UpdatemdStmt
+{
+	NodeTag		type;
+	char	   *mdname;			/* name of model to update */
+	char 	   *modelPath;      
+} UpdatemdStmt;
+
 /* ----------------------
  *		Createdb Statement
  * ----------------------
