@@ -24,7 +24,7 @@ LDFLAGS_INTERNAL += -L$(top_builddir)/src/fe_utils -lpgfeutils $(libpq_pgport)
 OBJS=	command.o common.o copy.o crosstabview.o \
 	describe.o help.o input.o large_obj.o mainloop.o \
 	prompt.o psqlscanslash.o sql_help.o startup.o stringutils.o \
-	tab-complete.o variables.o \
+	tab-complete.o variables.o model.o \
 	$(WIN32RES)
 
 
