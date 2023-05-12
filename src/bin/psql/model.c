@@ -157,7 +157,7 @@ error:
  * 上传文件，并且返回大对象的OID
  * 
 */
-Oid do_upload(char* file_path){
+Oid do_upload(char* file_path, bool *own_transaction){
 
 	expand_tilde(&file_path);
 
@@ -165,9 +165,9 @@ Oid do_upload(char* file_path){
 	PGresult   *res;
 	Oid			loid;
 	char		oidbuf[32];
-	bool		own_transaction;
+	// bool		own_transaction;
 
-	if (!start_lo_xact("\\do_upload", &own_transaction))
+	if (!start_lo_xact("\\do_upload_model", own_transaction))
 		goto error;
 
 	SetCancelConn();
@@ -177,12 +177,13 @@ Oid do_upload(char* file_path){
 	if (loid == InvalidOid)
 	{
 		pg_log_info("%s", PQerrorMessage(pset.db));
-		fail_lo_xact("\\do_upload", own_transaction);
+		// fail_lo_xact("\\do_upload", own_transaction);
 		goto error;
 	}
 
-	if (!finish_lo_xact("\\do_upload", own_transaction))
-		goto error;
+	// no commit 
+	// if (!finish_lo_xact("\\do_upload", own_transaction))
+	// 	goto error;
 
 
 	sprintf(oidbuf, "%u", loid);
@@ -224,3 +225,12 @@ char *reassemble_query(const char* query, Oid foid){
 	return res;
 }
 
+
+void 
+do_upload_finish(int status, bool own_transaction){
+	if(status == -1) {
+		fail_lo_xact("\\do_upload_model", own_transaction);
+	} else {
+		finish_lo_xact("\\do_upload_model", own_transaction);
+	}	
+}

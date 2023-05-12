@@ -1440,7 +1440,7 @@ SendQuery(const char *query)
 
 		/* 需要传输模型文件的进行特殊处理 */
 		if(pg_strncasecmp(query, "create model", 12) == 0) {
-
+			
 			// printf("%s\n","in model precess");
 			char *path = parse_upload_model_path(query);
 			// printf("after path , query is :%s\n",query);
@@ -1449,24 +1449,28 @@ SendQuery(const char *query)
 				results = PQmakeEmptyPGresult(pset.db, PGRES_NONFATAL_ERROR);
 			} 
 			else {
-				// 上传文件
-				Oid foid = do_upload(path);
+				bool own_transaction;
+				int			status = 1;
+				Oid foid = do_upload(path, &own_transaction);
 				// Oid foid = InvalidOid;
 				if(foid != InvalidOid) {
-					// 重新组装query
+
 					char *query2 = reassemble_query(query, foid);
-					printf("after query: %s\n", query2);
-					// results = PQexec(pset.db, query2);
-					// ResetCancelConn();
-					// OK = ProcessResult(&results);
-					OK = true;
+					results = PQexec(pset.db, query2);
+					ResetCancelConn();
+					OK = ProcessResult(&results);	
+					if( !OK ) status = -1; 
+					// OK = true;
 					// // 缺了这个会段错误
-					results = PQmakeEmptyPGresult(pset.db, PGRES_COMMAND_OK);
+					// results = PQmakeEmptyPGresult(pset.db, PGRES_COMMAND_OK);
 
 				} else {
+					status = -1;
 					OK = false;
 					results = PQmakeEmptyPGresult(pset.db, PGRES_NONFATAL_ERROR);
 				}
+
+				do_upload_finish(status,own_transaction);
 
 			}
 			

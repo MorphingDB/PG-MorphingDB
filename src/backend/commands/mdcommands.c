@@ -5,11 +5,14 @@
 #include <sys/stat.h>
 
 
+#include "miscadmin.h"
 #include "access/heapam.h"
 #include "access/htup_details.h"
 #include "catalog/indexing.h"
 #include "catalog/pg_model_info.h"
 #include "commands/mdcommands.h"
+#include "common/relpath.h"
+#include "libpq/libpq-fs.h"
 #include "model/libtorch_wrapper.h"
 #include "utils/builtins.h"
 #include "utils/syscache.h"
@@ -26,38 +29,44 @@
 void
 createmd(ParseState *pstate, const CreatemdStmt *stmt)
 {
-    char        *mdname = stmt->mdname;
-    char        *mdpath = stmt->modelPath;
-    char        *query  = pstate->p_sourcetext;
-    Datum		new_record[Natts_pg_model_info];
-	bool		new_record_nulls[Natts_pg_model_info];
-    HeapTuple	tuple;
-    Relation	pg_model_info_rel;
+    char *dbDir = GetDatabasePath(MyDatabaseId, MyDatabaseTableSpace);
+    char *filename = psprintf("%s/%s/%s",DataDir, dbDir,"your_file_name" );
 
-    // 先判断是否已经存在同名的model
-    if(SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
-        ereport(ERROR,
-				(errcode(ERRCODE_DUPLICATE_MODEL),
-				 errmsg("model \"%s\" already exists", mdname)));
-    }
+    // printf("file path : %s", filename);
 
-    // 插入新model的记录
+    export_large_object(stmt->looid, filename);
+    // char        *mdname = stmt->mdname;
+    // char        *mdpath = stmt->modelPath;
+    // char        *query  = pstate->p_sourcetext;
+    // Datum		new_record[Natts_pg_model_info];
+	// bool		new_record_nulls[Natts_pg_model_info];
+    // HeapTuple	tuple;
+    // Relation	pg_model_info_rel;
 
-    pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
+    // // 先判断是否已经存在同名的model
+    // if(SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
+    //     ereport(ERROR,
+	// 			(errcode(ERRCODE_DUPLICATE_MODEL),
+	// 			 errmsg("model \"%s\" already exists", mdname)));
+    // }
 
-    MemSet(new_record, 0, sizeof(new_record));
-	MemSet(new_record_nulls, false, sizeof(new_record_nulls));
+    // // 插入新model的记录
 
-    new_record[Anum_pg_model_info_modelname - 1] = CStringGetDatum(mdname);
-    new_record[Anum_pg_model_info_createtime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
-    new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(mdpath); // text宏别用错了
-    new_record[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
+    // pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
+
+    // MemSet(new_record, 0, sizeof(new_record));
+	// MemSet(new_record_nulls, false, sizeof(new_record_nulls));
+
+    // new_record[Anum_pg_model_info_modelname - 1] = CStringGetDatum(mdname);
+    // new_record[Anum_pg_model_info_createtime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    // new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(mdpath); // text宏别用错了
+    // new_record[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
     
-    new_record_nulls[Anum_pg_model_info_updatetime - 1] = true;
-    tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
+    // new_record_nulls[Anum_pg_model_info_updatetime - 1] = true;
+    // tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 
-    CatalogTupleInsert(pg_model_info_rel, tuple);
-    table_close(pg_model_info_rel, RowExclusiveLock);
+    // CatalogTupleInsert(pg_model_info_rel, tuple);
+    // table_close(pg_model_info_rel, RowExclusiveLock);
 
     // ForceSyncCommit();
 }
@@ -138,4 +147,44 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
     table_close(pg_model_desc,NoLock);
 
 
+}
+
+
+
+
+void
+export_large_object(Oid lobjId, const char *filename)
+{
+    int32       lobj_fd;
+    char        buf[8192];
+    int         nbytes;
+    int         dst_fd;
+
+    
+    lobj_fd = inv_open(lobjId, INV_READ, CurrentMemoryContext);
+    if (lobj_fd < 0)
+        ereport(ERROR, (errmsg("could not open large object %u", lobjId)));
+
+    dst_fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC | PG_BINARY, 0666);
+    if (dst_fd < 0)
+        ereport(ERROR, (errcode_for_file_access(),
+                        errmsg("could not create file \"%s\" ", filename)));
+
+    for (;;)
+    {
+        nbytes = inv_read(lobj_fd, buf, sizeof(buf));
+        if (nbytes <= 0)
+            break;
+        if ((int) write(dst_fd, buf, nbytes) != nbytes)
+            ereport(ERROR, (errcode_for_file_access(),
+                            errmsg("could not write file \"%s\" ", filename)));
+    }
+
+    inv_close(lobj_fd);
+    if(close(dst_fd) != 0 ){
+        ereport(ERROR, (errcode_for_file_access(),
+                        errmsg("could not close file \"%s\" ", filename)));
+    }
+    inv_drop(lobjId);
+    
 }

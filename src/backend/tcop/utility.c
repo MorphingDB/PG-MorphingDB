@@ -582,7 +582,6 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 
 		case T_CreatemdStmt:
 		// 	确保在进行特定操作时，不处于事务块中
-			PreventInTransactionBlock(isTopLevel, "CREATE MODEL");
 			createmd(pstate, (CreatemdStmt *) parsetree);
 			break;
 

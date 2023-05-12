@@ -3110,7 +3110,7 @@ typedef struct CreatemdStmt
 {
 	NodeTag		type;
 	char	   *mdname;			/* name of model to create */
-	char	   *modelPath;		/* the model path used to load */
+	int	   		looid;		    /* large object oid */
 } CreatemdStmt;
 
 
