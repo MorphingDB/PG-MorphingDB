@@ -11,6 +11,7 @@
 #include "catalog/indexing.h"
 #include "catalog/pg_model_info.h"
 #include "commands/mdcommands.h"
+#include "common/md5.h"
 #include "common/relpath.h"
 #include "libpq/libpq-fs.h"
 #include "model/libtorch_wrapper.h"
@@ -32,9 +33,7 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     char *dbDir = GetDatabasePath(MyDatabaseId, MyDatabaseTableSpace);
     char *filename = psprintf("%s/%s/%s",DataDir, dbDir,"your_file_name" );
 
-    // printf("file path : %s", filename);
-
-    export_large_object(stmt->looid, filename);
+    export_large_object(stmt->looid, filename, stmt->md5);
     // char        *mdname = stmt->mdname;
     // char        *mdpath = stmt->modelPath;
     // char        *query  = pstate->p_sourcetext;
@@ -153,12 +152,14 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
 
 
 void
-export_large_object(Oid lobjId, const char *filename)
+export_large_object(Oid lobjId, const char *filename, const char* md5)
 {
     int32       lobj_fd;
     char        buf[8192];
     int         nbytes;
     int         dst_fd;
+    char        hexsum[33]; // 摘要校验
+    char        *err_msg;
 
     
     lobj_fd = inv_open(lobjId, INV_READ, CurrentMemoryContext);
@@ -166,25 +167,43 @@ export_large_object(Oid lobjId, const char *filename)
         ereport(ERROR, (errmsg("could not open large object %u", lobjId)));
 
     dst_fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC | PG_BINARY, 0666);
-    if (dst_fd < 0)
+    if (dst_fd < 0){
+        inv_close(lobj_fd);
         ereport(ERROR, (errcode_for_file_access(),
                         errmsg("could not create file \"%s\" ", filename)));
+    }
 
     for (;;)
     {
         nbytes = inv_read(lobj_fd, buf, sizeof(buf));
         if (nbytes <= 0)
             break;
-        if ((int) write(dst_fd, buf, nbytes) != nbytes)
-            ereport(ERROR, (errcode_for_file_access(),
-                            errmsg("could not write file \"%s\" ", filename)));
+        if(!pg_md5_hash(buf, nbytes, hexsum)) {
+            err_msg = "model file check md5 failed";
+            goto error;
+        }
+        if ((int) write(dst_fd, buf, nbytes) != nbytes){
+            err_msg = "could not save model file";
+            goto error;
+        }
     }
 
     inv_close(lobj_fd);
     if(close(dst_fd) != 0 ){
         ereport(ERROR, (errcode_for_file_access(),
                         errmsg("could not close file \"%s\" ", filename)));
+        goto error;
     }
     inv_drop(lobjId);
-    
+
+
+
+    return ;
+
+error:
+    inv_close(lobj_fd);
+    close(dst_fd);
+    remove(filename);
+    ereport(ERROR, (errcode_for_file_access(),
+                        errmsg(err_msg)));
 }

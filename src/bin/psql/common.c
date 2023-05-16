@@ -1450,12 +1450,13 @@ SendQuery(const char *query)
 			} 
 			else {
 				bool own_transaction;
-				int			status = 1;
+				int	status = 1;
+				char *md5 = get_file_md5(path);
+				
 				Oid foid = do_upload(path, &own_transaction);
-				// Oid foid = InvalidOid;
 				if(foid != InvalidOid) {
 
-					char *query2 = reassemble_query(query, foid);
+					char *query2 = reassemble_query(query, foid, md5);
 					results = PQexec(pset.db, query2);
 					ResetCancelConn();
 					OK = ProcessResult(&results);	

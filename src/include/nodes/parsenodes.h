@@ -3109,8 +3109,9 @@ typedef struct LoadStmt
 typedef struct CreatemdStmt
 {
 	NodeTag		type;
-	char	   *mdname;			/* name of model to create */
+	char	    *mdname;			/* name of model to create */
 	int	   		looid;		    /* large object oid */
+	char 		*md5;
 } CreatemdStmt;
 
 

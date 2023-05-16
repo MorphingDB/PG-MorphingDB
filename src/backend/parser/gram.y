@@ -10099,11 +10099,12 @@ UpdatemdStmt:
  *****************************************************************************/	
 
 CreatemdStmt:
-			CREATE MODEL model_name PATH ICONST
+			CREATE MODEL model_name PATH ICONST SCONST
 				{
 					CreatemdStmt *n = makeNode(CreatemdStmt);
 					n->mdname = $3;
 					n->looid = $5;
+					n->md5 = $6;
 					$$ = (Node *)n;
 				}
 		;

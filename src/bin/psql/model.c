@@ -1,7 +1,7 @@
 #include "postgres_fe.h"
 #include "model.h"
 
-
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
 #ifndef WIN32
@@ -19,9 +19,10 @@
 #include "stringutils.h"
 
 #include "common/logging.h"
+#include "common/md5.h"
 
 
-
+#define BUFSIZE			8192
 
 /*
  * copy from  
@@ -203,7 +204,7 @@ error:
  * 
  * 
 */
-char *reassemble_query(const char* query, Oid foid){
+char *reassemble_query(const char* query, Oid foid, const char* md5){
 
 	char	   *token;
 	const char *whitespace = " \t\n\r";
@@ -219,7 +220,9 @@ char *reassemble_query(const char* query, Oid foid){
 	}
 
 	appendPQExpBufferStr(&buf, "path ");
-	appendPQExpBuffer(&buf, "%u ;", foid);
+	appendPQExpBuffer(&buf, "%u ", foid);
+	appendPQExpBuffer(&buf, "'%s' ;",md5);
+	
 	char *res = pg_strdup(buf.data);
 	termPQExpBuffer(&buf);
 	return res;
@@ -233,4 +236,30 @@ do_upload_finish(int status, bool own_transaction){
 	} else {
 		finish_lo_xact("\\do_upload_model", own_transaction);
 	}	
+}
+
+
+// 计算文件的md5
+char * 
+get_file_md5(const char *file_path) {
+	int			fd;
+	int			nbytes;
+	char		buf[BUFSIZE];
+	char 		*md5 = palloc(33);
+
+	fd = open(file_path, O_RDONLY | PG_BINARY, 0666);
+	if (fd < 0)
+		return NULL;
+
+
+	while ((nbytes = read(fd, buf, BUFSIZE)) > 0) {
+		if(!pg_md5_hash(buf, nbytes, md5))
+			return NULL;
+	}
+
+	(void) close(fd);
+	// printf("md5 len: %d\n",strlen(md5));
+	printf("md5: %s\n",md5);
+
+	return md5;
 }
