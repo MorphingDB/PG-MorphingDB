@@ -82,21 +82,21 @@ dropmd(ParseState *pstate, const DropmdStmt *stmt){
     Relation	pg_model_info_rel;
     HeapTuple	tuple;
      
-    if(!SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
-        ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_MODEL),
-				 errmsg("model \"%s\" does not exist", mdname)));
-    }
+    // if(!SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
+    //     ereport(ERROR,
+	// 			(errcode(ERRCODE_UNDEFINED_MODEL),
+	// 			 errmsg("model \"%s\" does not exist", mdname)));
+    // }
 
 
-    // 删除model
-    pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
-    tuple = SearchSysCache1(MODELNAME,CStringGetDatum(mdname));
+    // // 删除model
+    // pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
+    // tuple = SearchSysCache1(MODELNAME,CStringGetDatum(mdname));
 
-    CatalogTupleDelete(pg_model_info_rel,&tuple->t_self);
+    // CatalogTupleDelete(pg_model_info_rel,&tuple->t_self);
 
-    ReleaseSysCache(tuple);
-    table_close(pg_model_info_rel, NoLock);
+    // ReleaseSysCache(tuple);
+    // table_close(pg_model_info_rel, NoLock);
 
 }
 
@@ -118,33 +118,33 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
     values[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(mdpath);
     nulls[Anum_pg_model_info_modelpath - 1] = false;
 
-    replaces[Anum_pg_model_info_updatetime - 1] = true;
-    values[Anum_pg_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
-    nulls[Anum_pg_model_info_updatetime - 1] = false;
+    // replaces[Anum_pg_model_info_updatetime - 1] = true;
+    // values[Anum_pg_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    // nulls[Anum_pg_model_info_updatetime - 1] = false;
 
-    replaces[Anum_pg_model_info_query - 1] = true;
-    values[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
-    nulls[Anum_pg_model_info_query - 1] = false;
+    // replaces[Anum_pg_model_info_query - 1] = true;
+    // values[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
+    // nulls[Anum_pg_model_info_query - 1] = false;
 
 
 
-    // 查原来的tuple
-    pg_model_desc = table_open(ModelInfoRelationId, RowExclusiveLock);
-    tuple = SearchSysCache1(MODELNAME, CStringGetDatum(mdname));
-    if(!HeapTupleIsValid(tuple)) {
-        ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_MODEL),
-				 errmsg("model \"%s\" does not exist", mdname)));
-    }
+    // // 查原来的tuple
+    // pg_model_desc = table_open(ModelInfoRelationId, RowExclusiveLock);
+    // tuple = SearchSysCache1(MODELNAME, CStringGetDatum(mdname));
+    // if(!HeapTupleIsValid(tuple)) {
+    //     ereport(ERROR,
+	// 			(errcode(ERRCODE_UNDEFINED_MODEL),
+	// 			 errmsg("model \"%s\" does not exist", mdname)));
+    // }
 
-    // 更新tuple内容
-    newtuple = heap_modify_tuple(tuple, RelationGetDescr(pg_model_desc), values, nulls, replaces);
+    // // 更新tuple内容
+    // newtuple = heap_modify_tuple(tuple, RelationGetDescr(pg_model_desc), values, nulls, replaces);
 
-    // 更新表内tuple
-    CatalogTupleUpdate(pg_model_desc, &newtuple->t_self, newtuple);
+    // // 更新表内tuple
+    // CatalogTupleUpdate(pg_model_desc, &newtuple->t_self, newtuple);
 
-    ReleaseSysCache(tuple);
-    table_close(pg_model_desc,NoLock);
+    // ReleaseSysCache(tuple);
+    // table_close(pg_model_desc,NoLock);
 
 
 }

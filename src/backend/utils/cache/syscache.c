@@ -509,12 +509,12 @@ static const struct cachedesc cacheinfo[] = {
 		},
 		4
 	},
-	{ModelInfoRelationId,		/* MODELNAME */
-		ModelInfoNameIndex,
-		1,
+	{ModelInfoRelationId,		/* MODELNAMEVERSION */
+		ModelInfoNameVersionIndex,
+		2,
 		{
 			Anum_pg_model_info_modelname,
-			0,
+			Anum_pg_model_info_version,
 			0,
 			0
 		},

@@ -15,12 +15,14 @@ CATALOG(pg_model_info,2023,ModelInfoRelationId)
 	
 	/* model name */
 	NameData	modelname;
-	
+	int16  		version;
+	bool 		active;
 #ifdef CATALOG_VARLEN	
-	timestamp   createtime;
+	timestamp   uploadtime;
+	NameData    uploadby;
+	NameData 	md5;				
 	text    	modelpath;
-	text 		query;
-	timestamp   updatetime; /* nullable的字段需要放到复合类型下面 */
+	text 		description;
 	/*  注意：注释只能够是这种格式  */
 #endif
     
