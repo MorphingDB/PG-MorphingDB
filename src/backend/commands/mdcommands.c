@@ -8,6 +8,7 @@
 #include "miscadmin.h"
 #include "access/heapam.h"
 #include "access/htup_details.h"
+#include "access/genam.h"
 #include "catalog/indexing.h"
 #include "catalog/pg_model_info.h"
 #include "commands/mdcommands.h"
@@ -15,7 +16,10 @@
 #include "common/relpath.h"
 #include "libpq/libpq-fs.h"
 #include "model/libtorch_wrapper.h"
+#include "utils/acl.h"
 #include "utils/builtins.h"
+#include "utils/fmgroids.h"
+#include "utils/rel.h"
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 
@@ -30,17 +34,21 @@
 void
 createmd(ParseState *pstate, const CreatemdStmt *stmt)
 {
+    int16       version = get_model_max_version(stmt->mdname)+1;
     char *dbDir = GetDatabasePath(MyDatabaseId, MyDatabaseTableSpace);
-    char *filename = psprintf("%s/%s/%s",DataDir, dbDir,"your_file_name" );
-
+    char *filename = psprintf("%s/%s/%s-%d",DataDir, dbDir, stmt->mdname, version );
     export_large_object(stmt->looid, filename, stmt->md5);
-    // char        *mdname = stmt->mdname;
-    // char        *mdpath = stmt->modelPath;
-    // char        *query  = pstate->p_sourcetext;
-    // Datum		new_record[Natts_pg_model_info];
-	// bool		new_record_nulls[Natts_pg_model_info];
-    // HeapTuple	tuple;
-    // Relation	pg_model_info_rel;
+
+    Datum		new_record[Natts_pg_model_info];
+	bool		new_record_nulls[Natts_pg_model_info];
+    HeapTuple	tuple;
+    Relation	pg_model_info_rel;
+
+    char        *mdname = stmt->mdname;
+    
+    bool        active  = false;
+    char        *md5 = stmt->md5;
+    char        *user = GetUserNameFromId(GetUserId(), false);
 
     // // 先判断是否已经存在同名的model
     // if(SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
@@ -49,25 +57,29 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
 	// 			 errmsg("model \"%s\" already exists", mdname)));
     // }
 
-    // // 插入新model的记录
+    // 插入新model的记录
+    pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
 
-    // pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
+    MemSet(new_record, 0, sizeof(new_record));
+	MemSet(new_record_nulls, false, sizeof(new_record_nulls));
 
-    // MemSet(new_record, 0, sizeof(new_record));
-	// MemSet(new_record_nulls, false, sizeof(new_record_nulls));
-
-    // new_record[Anum_pg_model_info_modelname - 1] = CStringGetDatum(mdname);
-    // new_record[Anum_pg_model_info_createtime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    new_record[Anum_pg_model_info_modelname - 1] = CStringGetDatum(mdname);
+    new_record[Anum_pg_model_info_uploadtime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    new_record[Anum_pg_model_info_active - 1] = BoolGetDatum(active);
+    new_record[Anum_pg_model_info_version - 1] = Int16GetDatum(version);
+    new_record[Anum_pg_model_info_uploadby -1 ] =  CStringGetDatum(user);
+    new_record[Anum_pg_model_info_md5 - 1] = CStringGetDatum(md5);
     // new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(mdpath); // text宏别用错了
     // new_record[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
     
-    // new_record_nulls[Anum_pg_model_info_updatetime - 1] = true;
-    // tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
+    new_record_nulls[Anum_pg_model_info_modelpath - 1] = true;
+    new_record_nulls[Anum_pg_model_info_description - 1] = true;
+    tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 
-    // CatalogTupleInsert(pg_model_info_rel, tuple);
-    // table_close(pg_model_info_rel, RowExclusiveLock);
+    CatalogTupleInsert(pg_model_info_rel, tuple);
+    table_close(pg_model_info_rel, RowExclusiveLock);
 
-    // ForceSyncCommit();
+    ForceSyncCommit();
 }
 
 
@@ -220,4 +232,68 @@ export_large_object(Oid lobjId, const char *filename, const char* fmd5)
 
         
     return ;
+}
+
+
+/**
+ * 
+ * 查询已有的模型的版本最大值
+ * 没有就是0
+ * 
+*/
+int16
+get_model_max_version(const char* model_name) {
+    IndexScanDesc index_scan;
+    ScanKeyData scan_key_data;
+    TupleTableSlot *slot;
+    ItemPointer tid;
+    int16 max_version = 0;
+    Relation modelinfo_relation;
+    Relation index_relation;
+
+    modelinfo_relation = table_open(ModelInfoRelationId, AccessShareLock);
+    index_relation = index_open(ModelInfoNameVersionIndex,AccessShareLock);
+
+
+    TupleDesc tupleDesc = RelationGetDescr(modelinfo_relation);
+    slot = MakeSingleTupleTableSlot(tupleDesc, &TTSOpsVirtual);
+
+    // 初始化一个scan key
+    ScanKeyInit(&scan_key_data,
+                Anum_pg_model_info_modelname,
+                BTEqualStrategyNumber, F_NAMEEQ,
+                CStringGetDatum(model_name));
+
+    // 根据索引进行scan
+    index_scan = index_beginscan(modelinfo_relation, 
+                                 index_relation, 
+                                 NULL, 
+                                 1, 
+                                 0);
+    index_rescan(index_scan, &scan_key_data, 1, NULL, 0);
+
+     // 循环遍历获取结果
+    while ((tid = index_getnext_tid(index_scan, ForwardScanDirection)) != NULL){
+        if (index_fetch_heap(index_scan, slot)){
+            Datum datum;
+            bool isNull;
+            datum = slot_getattr(slot, Anum_pg_model_info_version, &isNull);
+
+            if (!isNull){
+                int16 version = DatumGetInt16(datum);
+                if (version > max_version)
+                {
+                    max_version = version;
+                }
+            }
+        }
+        
+    }
+    ExecDropSingleTupleTableSlot(slot);
+
+    index_endscan(index_scan);
+    table_close(modelinfo_relation, AccessShareLock);
+    index_close(index_relation,AccessShareLock);
+
+    return max_version;
 }
