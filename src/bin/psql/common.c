@@ -19,6 +19,7 @@
 #endif
 
 #include "common/logging.h"
+#include "common/model_md5.h"
 #include "fe_utils/mbprint.h"
 #include "fe_utils/string_utils.h"
 #include "portability/instr_time.h"
@@ -28,6 +29,7 @@
 #include "copy.h"
 #include "crosstabview.h"
 #include "model.h"
+
 #include "settings.h"
 
 
@@ -1451,32 +1453,38 @@ SendQuery(const char *query)
 			else {
 				bool own_transaction;
 				int	status = 1;
-				char *md5 = get_file_md5(path);
-				
-				Oid foid = do_upload(path, &own_transaction);
-				if(foid != InvalidOid) {
-
-					char *query2 = reassemble_query(query, foid, md5);
-					results = PQexec(pset.db, query2);
-					ResetCancelConn();
-					OK = ProcessResult(&results);	
-					if( !OK ) status = -1; 
-					// OK = true;
-					// // 缺了这个会段错误
-					// results = PQmakeEmptyPGresult(pset.db, PGRES_COMMAND_OK);
-
-				} else {
+				char *md5 = palloc(MD5_STR_LEN + 1);
+				if(compute_file_md5(path, md5) != 0 ) {
+					// error
 					status = -1;
 					OK = false;
 					results = PQmakeEmptyPGresult(pset.db, PGRES_NONFATAL_ERROR);
 				}
+				else {
+					printf("md5:%s\n",md5);
+					Oid foid = do_upload(path, &own_transaction);
+					if(foid != InvalidOid) {
 
+						char *query2 = reassemble_query(query, foid, md5);
+						results = PQexec(pset.db, query2);
+						ResetCancelConn();
+						OK = ProcessResult(&results);	
+						if( !OK ) status = -1; 
+						// OK = true;
+						// // 缺了这个会段错误
+						// results = PQmakeEmptyPGresult(pset.db, PGRES_COMMAND_OK);
+
+					} else {
+						status = -1;
+						OK = false;
+						results = PQmakeEmptyPGresult(pset.db, PGRES_NONFATAL_ERROR);
+					}
+				}
 				do_upload_finish(status,own_transaction);
 
 			}
 			
 		} else {
-
 			results = PQexec(pset.db, query);
 			/* these operations are included in the timing result: */
 			ResetCancelConn();

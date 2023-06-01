@@ -11,7 +11,7 @@
 #include "catalog/indexing.h"
 #include "catalog/pg_model_info.h"
 #include "commands/mdcommands.h"
-#include "common/md5.h"
+#include "common/model_md5.h"
 #include "common/relpath.h"
 #include "libpq/libpq-fs.h"
 #include "model/libtorch_wrapper.h"
@@ -152,7 +152,7 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
 
 
 void
-export_large_object(Oid lobjId, const char *filename, const char* md5)
+export_large_object(Oid lobjId, const char *filename, const char* fmd5)
 {
     int32       lobj_fd;
     char        buf[8192];
@@ -160,7 +160,9 @@ export_large_object(Oid lobjId, const char *filename, const char* md5)
     int         dst_fd;
     char        hexsum[33]; // 摘要校验
     char        *err_msg;
-
+    unsigned char md5_value[MD5_SIZE];
+    MD5_CTX md5;
+    
     
     lobj_fd = inv_open(lobjId, INV_READ, CurrentMemoryContext);
     if (lobj_fd < 0)
@@ -172,38 +174,50 @@ export_large_object(Oid lobjId, const char *filename, const char* md5)
         ereport(ERROR, (errcode_for_file_access(),
                         errmsg("could not create file \"%s\" ", filename)));
     }
+    MD5Init(&md5);
 
     for (;;)
     {
         nbytes = inv_read(lobj_fd, buf, sizeof(buf));
         if (nbytes <= 0)
             break;
-        if(!pg_md5_hash(buf, nbytes, hexsum)) {
-            err_msg = "model file check md5 failed";
-            goto error;
-        }
+        // if(!pg_md5_hash(buf, nbytes, hexsum)) {
+        //     err_msg = "model file check md5 failed";
+        //     goto error;
+        // }
+        MD5Update(&md5, buf, nbytes);
         if ((int) write(dst_fd, buf, nbytes) != nbytes){
-            err_msg = "could not save model file";
-            goto error;
+            inv_close(lobj_fd);
+            close(dst_fd);
+            remove(filename);
+            ereport(ERROR, (errcode_for_file_access(),
+                                    errmsg("err_msg")));
         }
     }
 
     inv_close(lobj_fd);
     if(close(dst_fd) != 0 ){
+        // ereport(ERROR, (errcode_for_file_access(),
+        //                 errmsg("could not close file \"%s\" ", filename)));
+        remove(filename);
         ereport(ERROR, (errcode_for_file_access(),
-                        errmsg("could not close file \"%s\" ", filename)));
-        goto error;
+                                    errmsg("could not close file")));
     }
     inv_drop(lobjId);
+    MD5Final(&md5, md5_value);
+    char *md5_str = palloc0(33);
 
+    for(int i = 0; i < MD5_SIZE; i++)
+	{
+		snprintf(md5_str + i*2, 2+1, "%02x", md5_value[i]);
+	}
 
+    if(pg_strcasecmp(md5_str, fmd5)){
+        remove(filename);
+        ereport(ERROR, (errcode_for_file_access(),
+                        errmsg("file md5 not match")));
+    }
 
+        
     return ;
-
-error:
-    inv_close(lobj_fd);
-    close(dst_fd);
-    remove(filename);
-    ereport(ERROR, (errcode_for_file_access(),
-                        errmsg(err_msg)));
 }

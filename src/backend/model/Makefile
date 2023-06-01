@@ -8,7 +8,7 @@ LIBTORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/cs
 
 override CPPFLAGS := -I. $(CPPFLAGS) $(LIBTORCH_INCLUDES)
 
-OBJS = libtorch_wrapper.o
+OBJS = libtorch_wrapper.o md5.o
 	
 include $(top_srcdir)/src/backend/common.mk
 
