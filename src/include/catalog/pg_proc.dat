@@ -10676,4 +10676,23 @@
   proname => 'pg_partition_root', prorettype => 'regclass',
   proargtypes => 'regclass', prosrc => 'pg_partition_root' },
 
+# dect_res function 
+{ oid => '6300', descr => 'I/O',
+  proname => 'detc_res_in', prorettype => 'detc_res',
+  proargtypes => 'cstring', prosrc => 'detc_res_in' },
+
+{ oid => '6301', descr => 'I/O',
+proname => 'detc_res_out', prorettype => 'cstring',
+proargtypes => 'detc_res', prosrc => 'detc_res_out' },
+
+{ oid => '6302', descr => 'I/O',
+proname => 'detc_res_recv', prorettype => 'detc_res',
+proargtypes => 'bytea', prosrc => 'detc_res_recv' },
+
+{ oid => '6303', descr => 'I/O',
+proname => 'detc_res_send', prorettype => 'bytea',
+proargtypes => 'detc_res', prosrc => 'detc_res_send' },
+
 ]
+
+

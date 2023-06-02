@@ -134,6 +134,7 @@
   typoutput => 'record_out', typreceive => 'record_recv',
   typsend => 'record_send', typalign => 'd', typstorage => 'x' },
 
+
 # OIDS 100 - 199
 
 { oid => '114', array_type_oid => '199', descr => 'JSON stored as text',
@@ -594,5 +595,12 @@
   typname => 'anyrange', typlen => '-1', typbyval => 'f', typtype => 'p',
   typcategory => 'P', typinput => 'anyrange_in', typoutput => 'anyrange_out',
   typreceive => '-', typsend => '-', typalign => 'd', typstorage => 'x' },
+
+
+{ oid => '6122', array_type_oid => 'nnnn',
+  descr => 'object detection result (class, confidence, box)',
+  typname => 'detection_result', typlen => '37', typbyval => 'f', typcategory => 'C',
+  typinput => 'detc_res_in', typoutput => 'detc_res_out',
+  typreceive => 'detc_res_recv', typsend => 'detc_res_send', typalign => 'd' },
 
 ]
