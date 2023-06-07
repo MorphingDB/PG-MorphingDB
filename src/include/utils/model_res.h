@@ -11,9 +11,10 @@
 */
 typedef struct  
 {
-    int8   clazz;
-    float8 confidence; 
-    BOX    location; 
+    int32   clazz;
+    float4 confidence; 
+    int32    x1,y1, x2,y2;
+
 
 } DETC_RES;
 

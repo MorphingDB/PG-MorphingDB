@@ -597,10 +597,10 @@
   typreceive => '-', typsend => '-', typalign => 'd', typstorage => 'x' },
 
 
-{ oid => '6122', array_type_oid => 'nnnn',
+{ oid => '6122', array_type_oid => '6123',
   descr => 'object detection result (class, confidence, box)',
-  typname => 'detection_result', typlen => '37', typbyval => 'f', typcategory => 'C',
+  typname => 'detection_result', typlen => '24', typbyval => 'f', typcategory => 'C',
   typinput => 'detc_res_in', typoutput => 'detc_res_out',
-  typreceive => 'detc_res_recv', typsend => 'detc_res_send', typalign => 'd' },
+  typreceive => 'detc_res_recv', typsend => 'detc_res_send', typalign => 'i' },
 
 ]
