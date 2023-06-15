@@ -69,10 +69,10 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     new_record[Anum_pg_model_info_version - 1] = Int16GetDatum(version);
     new_record[Anum_pg_model_info_uploadby -1 ] =  CStringGetDatum(user);
     new_record[Anum_pg_model_info_md5 - 1] = CStringGetDatum(md5);
-    // new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(mdpath); // text宏别用错了
+    new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(filename); // text宏别用错了
     // new_record[Anum_pg_model_info_query - 1] = CStringGetTextDatum(query);
     
-    new_record_nulls[Anum_pg_model_info_modelpath - 1] = true;
+    //new_record_nulls[Anum_pg_model_info_modelpath - 1] = true;
     new_record_nulls[Anum_pg_model_info_description - 1] = true;
     tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 

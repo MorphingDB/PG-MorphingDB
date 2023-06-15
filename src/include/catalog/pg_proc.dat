@@ -10702,6 +10702,17 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
   proname => 'detc_res_confidence', prorettype => 'float4',
   proargtypes => 'detection_result', prosrc => 'detc_res_confidence' },
 
+# predict function
+{ oid => '6125', descr => 'predict function return float',
+  proname => 'pg_predict_float', prorettype => 'float8', proisstrict => 'f',
+  provariadic => 'any', proargmodes => '{i, i, v}', 
+  proargtypes => 'cstring cstring any', prosrc => 'pg_predict_float' },
+
+
+{ oid => '6126', descr => 'predict function return text',
+  proname => 'pg_predict_text', prorettype => 'text', proisstrict => 'f',
+  provariadic => 'any', proargmodes => '{i, i, v}',
+  proargtypes => 'cstring cstring any', prosrc => 'pg_predict_text' },
 
 
 ]
