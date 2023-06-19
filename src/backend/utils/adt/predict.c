@@ -2,7 +2,7 @@
  * @Author: laihuihang laihuihang@foxmail.com
  * @Date: 2023-06-05 15:36:54
  * @LastEditors: laihuihang laihuihang@foxmail.com
- * @LastEditTime: 2023-06-15 09:42:07
+ * @LastEditTime: 2023-06-19 10:33:30
  * @FilePath: /postgres-kernel/src/backend/utils/adt/predict.c
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -80,7 +80,6 @@ pg_predict_float(PG_FUNCTION_ARGS)
         }
     }
 
-    
     ret = Float8GetDatum(predict_float(model_name, cuda, args));
     pfree(args);
     PG_RETURN_DATUM(ret);
