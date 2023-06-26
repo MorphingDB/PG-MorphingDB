@@ -27,8 +27,9 @@ model_manager_load_model(ModelManager *manager, const char *model_path)
     try {
         torch::jit::script::Module cur_module = torch::jit::load(model_path);
         manager->module_handle_[model_path].first = cur_module;
-        manager->module_handle_[model_path].second = false;
-        cur_module.eval();
+        manager->module_handle_[model_path].second = at::kCPU;
+        manager->module_handle_[model_path].first.to(manager->module_handle_[model_path].second);
+        manager->module_handle_[model_path].first.eval();
         return true;
     }
     catch (const std::exception& e) {
@@ -101,13 +102,14 @@ bool
 model_manager_set_cuda(ModelManager *manager, const char *model_path)
 {
     if(manager->module_handle_.find(model_path) != manager->module_handle_.end()){
-        if(manager->module_handle_[model_path].second == true){
-            ereport(INFO, (errmsg("no need to to KCUDA!")));
+        if(manager->module_handle_[model_path].second == at::kCUDA){
             return true;
         } else {
             if(torch::cuda::is_available()){
-                manager->module_handle_[model_path].first.to(at::kCUDA);
-                manager->module_handle_[model_path].second = true;
+                manager->module_handle_[model_path].second = at::kCUDA;
+                manager->module_handle_[model_path].first.to(manager->module_handle_[model_path].second);
+                manager->module_handle_[model_path].first.eval();
+                ereport(INFO, (errmsg("libtorch use gpu!")));
                 return true;
             }
             return false;
@@ -118,19 +120,20 @@ model_manager_set_cuda(ModelManager *manager, const char *model_path)
 }
 
 bool 
-model_manager_is_cuda(ModelManager *manager, const char *model_path)
+model_manager_get_device_type(ModelManager *manager, const char *model_path, torch::DeviceType& device_type)
 {
     if(manager->module_handle_.find(model_path) == manager->module_handle_.end()){
         return false;
     }
-    return manager->module_handle_[model_path].second;
+    device_type = manager->module_handle_[model_path].second;
+    return true;
 }
 
 bool 
-model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& img_tensor, Args *args)
+model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input_tensor, Args *args)
 {
     if(manager->module_preprocess_functions_.find(model_path) != manager->module_preprocess_functions_.end()){
-        return manager->module_preprocess_functions_[model_path](img_tensor, args);
+        return manager->module_preprocess_functions_[model_path](input_tensor, args);
     }
     return false;
 }
@@ -165,8 +168,6 @@ model_manager_register_pre_process(ModelManager *manager, const char *model_name
 {
     char* model_path = nullptr;
     if(model_manager_get_model_path(manager, model_name, &model_path)){
-        // ereport(INFO, (errmsg("model_path:%s", model_path)));
-        // ereport(INFO, (errmsg("ponit1:%p", manager)));
         manager->module_preprocess_functions_[model_path] = func;
         return;
     }else{
@@ -214,13 +215,13 @@ model_manager_predict(ModelManager *manager, const char *model_path, at::Tensor&
 }
 
 bool 
-model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input, at::Tensor& output)
+model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input, at::Tensor& output)
 {
     if(manager->module_handle_.find(model_path) == manager->module_handle_.end()){
         return false;
     }
     try {
-        output = manager->module_handle_[model_path].first.forward(input).toTensor();
+        output = manager->module_handle_[model_path].first.forward({input[0]}).toTensor();
         return true;
     }
     catch (const std::exception& e) {

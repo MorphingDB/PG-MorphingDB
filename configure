@@ -19773,9 +19773,15 @@ else
 esac
 fi
 
-# 下载libtorch
+# download libtorch
 if [[ ! -d "./third_party/libtorch" ]]; then
-  wget -P ./third_party https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.0.0%2Bcpu.zip
+  nvcc --version
+  # gpu environment
+  if [[ $? -ne 0 ]]; then
+    wget -P ./third_party https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-2.0.0%2Bcpu.zip
+  else
+    wget -P ./third_party https://download.pytorch.org/libtorch/cu117/libtorch-shared-with-deps-2.0.0%2Bcu117.zip
+  fi
   if [[ $? -ne 0 ]]; then
     echo "download libtorch error!"
     exit 1

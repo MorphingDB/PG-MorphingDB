@@ -22,6 +22,8 @@ float8
 predict_float(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
+    std::vector<torch::Tensor> input_tensor;
+    at::Tensor output_tensor;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -39,20 +41,20 @@ predict_float(const char* model_name, const char* cuda, Args* args)
         ereport(ERROR, (errmsg("load model error")));
     }
     
-    // 2. 设置gpu模式
-    if (!model_manager_is_cuda(&model_manager, model_path) && 
-        model_manager_set_cuda(&model_manager, model_path)){
-        ereport(INFO, (errmsg("libtorch use gpu!")));
-    }
+    if(pg_strcasecmp(cuda, "gpu") == 0 && 
+       model_manager_set_cuda(&model_manager, model_path)){
 
-    // 3. 输入预处理
-    std::vector<torch::jit::IValue> img_tensor;
-    at::Tensor output_tensor;
-    if(!model_manager_pre_process(&model_manager, model_path, img_tensor, args)){
-        ereport(ERROR, (errmsg("preprocess error!")));
     }
+    // 2. 设置gpu模式
+    // if(model_manager_set_cuda(&model_manager, model_path)){
+        
+    // }
+    // 3. 输入预处理
+    if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
+        ereport(ERROR, (errmsg("preprocess error!")));
+    } 
     // 4. 预测
-    if(!model_manager_predict_multi_input(&model_manager, model_path, img_tensor, output_tensor)){
+    if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
         ereport(ERROR, (errmsg("predict error!")));
     }
     // 5. 结果处理
@@ -68,6 +70,8 @@ text*
 predict_text(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
+    std::vector<torch::Tensor> input_tensor;
+    at::Tensor output_tensor;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -86,19 +90,17 @@ predict_text(const char* model_name, const char* cuda, Args* args)
     }
     
     // 2. 设置gpu模式
-    if (!model_manager_is_cuda(&model_manager, model_path) && 
-        model_manager_set_cuda(&model_manager, model_path)){
-        ereport(INFO, (errmsg("libtorch use gpu!")));
+    if(pg_strcasecmp(cuda, "gpu") == 0 && 
+       model_manager_set_cuda(&model_manager, model_path)){
+
     }
 
     // 3. 输入预处理
-    std::vector<torch::jit::IValue> img_tensor;
-    at::Tensor output_tensor;
-    if(!model_manager_pre_process(&model_manager, model_path, img_tensor, args)){
+    if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
         ereport(ERROR, (errmsg("preprocess error!")));
     }
     // 4. 预测
-    if(!model_manager_predict_multi_input(&model_manager, model_path, img_tensor, output_tensor)){
+    if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
         ereport(ERROR, (errmsg("predict error!")));
     }
     // 5. 结果处理
@@ -108,6 +110,8 @@ predict_text(const char* model_name, const char* cuda, Args* args)
     }
     return result;
 }
+
+
 
 
 #ifdef __cplusplus
