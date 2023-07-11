@@ -3112,6 +3112,7 @@ typedef struct CreatemdStmt
 	char	    *mdname;			/* name of model to create */
 	int	   		looid;		    /* large object oid */
 	char 		*md5;
+	char		*desc;			/* model description */
 } CreatemdStmt;
 
 
@@ -3133,8 +3134,10 @@ typedef struct DropmdStmt
 typedef struct UpdatemdStmt
 {
 	NodeTag		type;
-	char	   *mdname;			/* name of model to update */
-	char 	   *modelPath;      
+	char	    *mdname;			/* name of model to create */
+	int	   		looid;		    /* large object oid */
+	char 		*md5;
+	char		*desc;			/* model description */
 } UpdatemdStmt;
 
 /* ----------------------

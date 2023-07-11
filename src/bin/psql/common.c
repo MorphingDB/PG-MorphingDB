@@ -1441,7 +1441,7 @@ SendQuery(const char *query)
 			INSTR_TIME_SET_CURRENT(before);
 
 		/* 需要传输模型文件的进行特殊处理 */
-		if(pg_strncasecmp(query, "create model", 12) == 0) {
+		if(pg_strncasecmp(query, "create model", 12) == 0 || pg_strncasecmp(query, "modify model", 12) == 0) {
 			
 			// printf("%s\n","in model precess");
 			char *path = parse_upload_model_path(query);
@@ -1466,6 +1466,7 @@ SendQuery(const char *query)
 					if(foid != InvalidOid) {
 
 						char *query2 = reassemble_query(query, foid, md5);
+
 						results = PQexec(pset.db, query2);
 						ResetCancelConn();
 						OK = ProcessResult(&results);	

@@ -342,9 +342,9 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <chr>		enable_trigger
 
 %type <str>		copy_file_name
-				database_name model_name model_path access_method_clause access_method attr_name
+				database_name model_name access_method_clause access_method attr_name
 				table_access_method_clause name cursor_name file_name
-				index_name opt_index_name cluster_index_specification
+				index_name opt_index_name cluster_index_specification description_clause
 
 %type <list>	func_name handler_name qual_Op qual_all_Op subquery_Op
 				opt_class opt_inline_handler opt_validator validator_clause
@@ -630,7 +630,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 
 	DATA_P DATABASE DAY_P DEALLOCATE DEC DECIMAL_P DECLARE DEFAULT DEFAULTS
 	DEFERRABLE DEFERRED DEFINER DELETE_P DELIMITER DELIMITERS DEPENDS DESC
-	DETACH DICTIONARY DISABLE_P DISCARD DISTINCT DO DOCUMENT_P DOMAIN_P
+	DETACH DESCRIPTION DICTIONARY DISABLE_P DISCARD DISTINCT DO DOCUMENT_P DOMAIN_P
 	DOUBLE_P DROP
 
 	EACH ELSE ENABLE_P ENCODING ENCRYPTED END_P ENUM_P ESCAPE EVENT EXCEPT
@@ -10082,11 +10082,13 @@ LoadStmt:	LOAD file_name
  *****************************************************************************/	
 
 UpdatemdStmt:
-			MODIFY MODEL model_name PATH model_path
+			MODIFY MODEL model_name PATH ICONST SCONST description_clause
 				{
 					UpdatemdStmt *n = makeNode(UpdatemdStmt);
 					n->mdname = $3;
-					n->modelPath = $5;
+					n->looid = $5;
+					n->md5 = $6;
+					n->desc = $7;
 					$$ = (Node *)n;
 				}
 		;
@@ -10099,12 +10101,13 @@ UpdatemdStmt:
  *****************************************************************************/	
 
 CreatemdStmt:
-			CREATE MODEL model_name PATH ICONST SCONST
+			CREATE MODEL model_name PATH ICONST SCONST description_clause
 				{
 					CreatemdStmt *n = makeNode(CreatemdStmt);
 					n->mdname = $3;
 					n->looid = $5;
 					n->md5 = $6;
+					n->desc = $7;
 					$$ = (Node *)n;
 				}
 		;
@@ -10117,7 +10120,7 @@ CreatemdStmt:
  *****************************************************************************/	
 
 DropmdStmt:
-			DROP MODEL model_name 
+			DROP MODEL model_name
 				{
 					DropmdStmt *n = makeNode(DropmdStmt);
 					n->mdname = $3;
@@ -14799,14 +14802,17 @@ name_list:	name
 		;
 
 
+description_clause:
+			DESCRIPTION SCONST						{$$ = $2 ; }
+			| /*EMPTY*/								{$$ = NULL ;}
+			;
+
 name:		ColId									{ $$ = $1; };
 
 model_name:
 			ColId									{ $$ = $1; };
 
-model_path:
-			file_name								{ $$ = $1; };			
-
+			
 database_name:
 			ColId									{ $$ = $1; };
 
@@ -15143,6 +15149,7 @@ unreserved_keyword:
 			| DELIMITER
 			| DELIMITERS
 			| DEPENDS
+			| DESCRIPTION
 			| DETACH
 			| DICTIONARY
 			| DISABLE_P

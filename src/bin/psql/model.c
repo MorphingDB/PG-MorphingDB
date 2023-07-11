@@ -221,7 +221,15 @@ char *reassemble_query(const char* query, Oid foid, const char* md5){
 
 	appendPQExpBufferStr(&buf, "path ");
 	appendPQExpBuffer(&buf, "%u ", foid);
-	appendPQExpBuffer(&buf, "'%s' ;",md5);
+	appendPQExpBuffer(&buf, "'%s'",md5);
+
+
+	token = strtokx(NULL, whitespace, NULL, "'", 0, false, false,pset.encoding);
+
+
+	while(token = strtokx(NULL, whitespace, NULL, "'", 0, false, false,pset.encoding), token != NULL) {
+		appendPQExpBuffer(&buf, "%s ",token);
+	}
 	
 	char *res = pg_strdup(buf.data);
 	termPQExpBuffer(&buf);
