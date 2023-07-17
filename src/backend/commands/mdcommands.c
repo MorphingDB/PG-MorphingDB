@@ -74,8 +74,7 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
         new_record[Anum_pg_model_info_description - 1] = CStringGetTextDatum(desc);
     }
 
-        
-    new_record_nulls[Anum_pg_model_info_updatetime - 1] = true;
+    new_record[Anum_pg_model_info_updatetime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
     tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 
     CatalogTupleInsert(pg_model_info_rel, tuple);
@@ -134,8 +133,8 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
 
     HeapTuple	tuple;
     HeapTuple	newtuple;
-	bool		nulls[Natts_pg_model_info];
-	bool		replaces[Natts_pg_model_info];
+	bool		nulls[Natts_pg_model_info] = {true};
+	bool		replaces[Natts_pg_model_info] = {false};
     bool        isnull;
 	Datum		values[Natts_pg_model_info];
     char        *mdname = stmt->mdname;

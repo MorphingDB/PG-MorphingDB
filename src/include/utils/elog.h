@@ -23,6 +23,10 @@
 #define DEBUG3		12
 #define DEBUG2		13
 #define DEBUG1		14			/* used by GUC debug_* variables */
+
+#ifdef LOG
+#undef LOG
+#endif
 #define LOG			15			/* Server operational messages; sent only to
 								 * server log by default. */
 #define LOG_SERVER_ONLY 16		/* Same as LOG for server reporting, but never

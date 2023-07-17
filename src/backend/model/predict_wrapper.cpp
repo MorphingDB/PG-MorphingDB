@@ -22,8 +22,8 @@ float8
 predict_float(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
-    std::vector<torch::Tensor> input_tensor;
-    at::Tensor output_tensor;
+    std::vector<torch::jit::IValue> input_tensor;
+    torch::jit::IValue output_tensor;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -51,15 +51,15 @@ predict_float(const char* model_name, const char* cuda, Args* args)
     // }
     // 3. 输入预处理
     if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
-        ereport(ERROR, (errmsg("preprocess error!")));
+        ereport(ERROR, (errmsg("%s:preprocess error!", model_path)));
     } 
     // 4. 预测
     if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
-        ereport(ERROR, (errmsg("predict error!")));
+        ereport(ERROR, (errmsg("%s:predict error!", model_path)));
     }
     // 5. 结果处理
     float8 result;
-    if(!model_manager_output_process_float(&model_manager, model_path, output_tensor, result)){
+    if(!model_manager_output_process_float(&model_manager, model_path, output_tensor, args, result)){
         ereport(ERROR, (errmsg("%s OutputProcessFloat callback is empty!", model_path)));
     }
     // ereport(INFO, (errmsg("after: %f", result)));
@@ -70,8 +70,8 @@ text*
 predict_text(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
-    std::vector<torch::Tensor> input_tensor;
-    at::Tensor output_tensor;
+    std::vector<torch::jit::IValue> input_tensor;
+    torch::jit::IValue output_tensor;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -97,17 +97,23 @@ predict_text(const char* model_name, const char* cuda, Args* args)
 
     // 3. 输入预处理
     if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
-        ereport(ERROR, (errmsg("preprocess error!")));
+        ereport(ERROR, (errmsg("%s:preprocess error!", model_path)));
     }
     // 4. 预测
     if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
-        ereport(ERROR, (errmsg("predict error!")));
+        ereport(ERROR, (errmsg("%s:predict error!", model_path)));
     }
     // 5. 结果处理
-    text* result;
-    if(!model_manager_output_process_text(&model_manager, model_path, output_tensor, result)){
+    text* result = nullptr;
+    std::string result_str;
+    if(!model_manager_output_process_text(&model_manager, model_path, output_tensor, args, result_str)){
         ereport(ERROR, (errmsg("%s OutputProcessFloat callback is empty!", model_path)));
     }
+
+    result = (text*)palloc(result_str.size() + VARHDRSZ);
+    SET_VARSIZE(result, result_str.size() + VARHDRSZ);
+    memcpy(VARDATA(result), result_str.c_str(), result_str.size());
+
     return result;
 }
 

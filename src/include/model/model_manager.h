@@ -17,9 +17,9 @@ extern "C"{
 #include "model_define.h"
 #include <unordered_map>
 
-using PreProcessCallback = bool(*)(std::vector<torch::Tensor>&, Args*);
-using OutputProcessFloatCallback = bool(*)(at::Tensor&, float8&);
-using OutputProcessTextCallback = bool(*)(at::Tensor&, text*);
+using PreProcessCallback = bool(*)(std::vector<torch::jit::IValue>&, Args*);
+using OutputProcessFloatCallback = bool(*)(torch::jit::IValue&, Args*, float8&);
+using OutputProcessTextCallback = bool(*)(torch::jit::IValue&, Args*, std::string&);
 
 typedef struct ModelManager {
     std::unordered_map<std::string, std::pair<torch::jit::script::Module, torch::DeviceType>>        module_handle_;  //key为路径，value为module句柄以及是否使用gpu
@@ -41,11 +41,11 @@ bool model_manager_set_cuda(ModelManager *manager, const char *model_path);
 
 bool model_manager_get_device_type(ModelManager *manager, const char *model_path, torch::DeviceType& device_type);
 
-bool model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input_tensor, Args *args);
+bool model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input_tensor, Args *args);
 
-bool model_manager_output_process_float(ModelManager *manager, const char *model_path, at::Tensor& output_tensor, float8& result);
+bool model_manager_output_process_float(ModelManager *manager, const char *model_path, torch::jit::IValue& output_tensor, Args* args, float8& result);
 
-bool model_manager_output_process_text(ModelManager *manager, const char *model_path, at::Tensor& output_tensor, text* result);
+bool model_manager_output_process_text(ModelManager *manager, const char *model_path, torch::jit::IValue& output_tensor, Args* args, std::string& result);
 
 void model_manager_register_pre_process(ModelManager *manager, const char *model_name, PreProcessCallback func);
 
@@ -53,9 +53,9 @@ void model_manager_register_output_process_float(ModelManager *manager, const ch
 
 void model_manager_register_output_process_text(ModelManager *manager, const char *model_name, OutputProcessTextCallback func);
 
-bool model_manager_predict(ModelManager *manager, const char *model_path, at::Tensor& input, at::Tensor& output);
+bool model_manager_predict(ModelManager *manager, const char *model_path, torch::jit::IValue& input, torch::jit::IValue& output);
 
-bool model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input, at::Tensor& output);
+bool model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input, torch::jit::IValue& output);
 
 }
 #endif // _MODEL_MANAGER_H_

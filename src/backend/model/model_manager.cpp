@@ -45,7 +45,7 @@ model_manager_get_model_path(ModelManager *manager, const char *model_name, char
     Datum               path_datum;
     bool                path_is_null;
     pg_model_info_rel = table_open(ModelInfoRelationId, AccessShareLock);
-    tuple = SearchSysCache1(MODELNAMEVERSION, CStringGetDatum(model_name));
+    tuple = SearchSysCache1(MODELNAME, CStringGetDatum(model_name));
 
     Assert(tuple != NULL);
 
@@ -107,7 +107,7 @@ model_manager_set_cuda(ModelManager *manager, const char *model_path)
         } else {
             if(torch::cuda::is_available()){
                 manager->module_handle_[model_path].second = at::kCUDA;
-                manager->module_handle_[model_path].first.to(manager->module_handle_[model_path].second);
+                manager->module_handle_[model_path].first.to(at::kCUDA);
                 manager->module_handle_[model_path].first.eval();
                 ereport(INFO, (errmsg("libtorch use gpu!")));
                 return true;
@@ -130,7 +130,7 @@ model_manager_get_device_type(ModelManager *manager, const char *model_path, tor
 }
 
 bool 
-model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input_tensor, Args *args)
+model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input_tensor, Args *args)
 {
     if(manager->module_preprocess_functions_.find(model_path) != manager->module_preprocess_functions_.end()){
         return manager->module_preprocess_functions_[model_path](input_tensor, args);
@@ -139,21 +139,21 @@ model_manager_pre_process(ModelManager *manager, const char *model_path, std::ve
 }
 
 bool 
-model_manager_output_process_float(ModelManager *manager, const char *model_path, at::Tensor& output_tensor, float8& result)
+model_manager_output_process_float(ModelManager *manager, const char *model_path, torch::jit::IValue& output_tensor, Args *args, float8& result)
 {
     if(manager->module_outputprocess_functions_float_.find(model_path) != manager->module_outputprocess_functions_float_.end()){
-        return manager->module_outputprocess_functions_float_[model_path](output_tensor, result);
+        return manager->module_outputprocess_functions_float_[model_path](output_tensor, args, result);
     }
 
     return false;
 }
 
 bool 
-model_manager_output_process_text(ModelManager *manager, const char *model_path, at::Tensor& output_tensor, text *result)
+model_manager_output_process_text(ModelManager *manager, const char *model_path, torch::jit::IValue& output_tensor, Args *args, std::string& result)
 {
     if(manager->module_outputprocess_functions_text_.find(model_path) != manager->module_outputprocess_functions_text_.end()){
         //ereport(INFO, (errmsg("user output_text function")));
-        return manager->module_outputprocess_functions_text_[model_path](output_tensor, result);
+        return manager->module_outputprocess_functions_text_[model_path](output_tensor, args, result);
     }
     // auto max_result = output_tensor.max(1,true);
     // auto max_index = std::get<1>(max_result).item<float>();
@@ -200,7 +200,7 @@ model_manager_register_output_process_text(ModelManager *manager, const char *mo
 }
 
 bool 
-model_manager_predict(ModelManager *manager, const char *model_path, at::Tensor& input, at::Tensor& output)
+model_manager_predict(ModelManager *manager, const char *model_path, torch::jit::IValue& input, torch::jit::IValue& output)
 {
     if(manager->module_handle_.find(model_path) == manager->module_handle_.end()){
         return false;
@@ -215,13 +215,13 @@ model_manager_predict(ModelManager *manager, const char *model_path, at::Tensor&
 }
 
 bool 
-model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::Tensor>& input, at::Tensor& output)
+model_manager_predict_multi_input(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input, torch::jit::IValue& output)
 {
     if(manager->module_handle_.find(model_path) == manager->module_handle_.end()){
         return false;
     }
     try {
-        output = manager->module_handle_[model_path].first.forward({input[0]}).toTensor();
+        output = manager->module_handle_[model_path].first.forward(input);
         return true;
     }
     catch (const std::exception& e) {
