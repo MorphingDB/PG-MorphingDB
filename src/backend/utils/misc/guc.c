@@ -487,6 +487,7 @@ bool		Debug_print_plan = false;
 bool		Debug_print_parse = false;
 bool		Debug_print_rewritten = false;
 bool		Debug_pretty_print = true;
+bool		Debug_print_batch_time = false;
 
 bool		log_parser_stats = false;
 bool		log_planner_stats = false;
@@ -1327,6 +1328,15 @@ static struct config_bool ConfigureNamesBool[] =
 		},
 		&Debug_pretty_print,
 		true,
+		NULL, NULL, NULL
+	},
+	{
+		{"debug_print_batch_time", PGC_USERSET, LOGGING_WHAT,
+			gettext_noop("print batch time for pre, infer, post process stage."),
+			NULL
+		},
+		&Debug_print_batch_time,
+		false,
 		NULL, NULL, NULL
 	},
 	{

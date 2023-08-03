@@ -9,11 +9,38 @@
 #ifndef _PREDICT_WRAPPER_H_
 #define _PREDICT_WRAPPER_H_
 
-
-#include "model_define.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "postgres.h"
+
+#include "fmgr.h"
+#include "model_define.h"
+#include "nodes/pg_list.h"
+#include "utils/palloc.h"
+
+extern bool Debug_print_batch_time;
+
+typedef struct VecAggState {
+    MemoryContext ctx;
+    List* ins;
+    List* outs;
+    int batch_i;
+    int prcsd_batch_n;
+    char* model;
+    char* cuda;
+    int nxt_csr;
+    int64_t pre_time;   // ms
+    int64_t infer_time; // ms
+    int64_t post_time;  // ms
+} VecAggState;
+
+VecAggState *makeVecAggState(FunctionCallInfo fcinfo);
+
+Args* makeVecFromArgs(FunctionCallInfo fcinfo, int start, int dim);
+
+void infer_batch_internal(VecAggState* state, bool ret_float8);
 
 float8 predict_float(const char* model_name, const char* cuda, Args* args);
 
