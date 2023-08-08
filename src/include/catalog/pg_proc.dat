@@ -10726,15 +10726,15 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
   proargtypes => 'internal cstring cstring any', prosrc => 'pg_predict_batch_accum_inv' },
 
 { oid => '6129', descr => 'predict function batch return float8',
-  proname => 'pg_predict_batch_final_float8', prorettype => 'float8', proisstrict => 'f',
-  proargtypes => 'internal', prosrc => 'pg_predict_batch_final_float8' },
+  proname => 'pg_predict_batch_final_float', prorettype => 'float8', proisstrict => 'f',
+  proargtypes => 'internal', prosrc => 'pg_predict_batch_final_float' },
 
 { oid => '6130', descr => 'predict function batch return text',
   proname => 'pg_predict_batch_final_text', prorettype => 'text', proisstrict => 'f',
   proargtypes => 'internal', prosrc => 'pg_predict_batch_final_text' },
 
 { oid => '6131', descr => 'interface for batch infer float8', prokind => 'a',
-  proname => 'pg_predict_batch_float8', proisstrict => 'f', provariadic => 'any', 
+  proname => 'pg_predict_batch_float', proisstrict => 'f', provariadic => 'any', 
   prorettype => 'float8', proargtypes => 'cstring cstring any', proargmodes => '{i, i, v}',
   prosrc => 'aggregate_dummy' },
   

@@ -48,12 +48,6 @@ makeVecAggState(FunctionCallInfo fcinfo)
     return state;
 }
 
-#define FillInVec(key, value)             \
-for (int i = start; i < start + dim; i++) \
-{                                         \
-    vec[i - start].key = value;           \
-}
-
 Args* 
 makeVecFromArgs(FunctionCallInfo fcinfo, int start, int dim) 
 {
@@ -65,33 +59,33 @@ makeVecFromArgs(FunctionCallInfo fcinfo, int start, int dim)
             case INT2OID:
             case INT8OID:
             {
-                FillInVec(integer, PG_GETARG_INT32(i));
+                vec[i - start].integer = PG_GETARG_INT32(i);
                 break;
             }
             case FLOAT4OID:
             case FLOAT8OID:
             {
-                FillInVec(integer, PG_GETARG_FLOAT8(i));
+                vec[i - start].integer = PG_GETARG_FLOAT8(i);
                 break;
             }
             case TEXTOID:
             {
-                FillInVec(ptr, TextDatumGetCString(PG_GETARG_DATUM(i)));
+                vec[i - start].ptr = TextDatumGetCString(PG_GETARG_DATUM(i));
                 break;
             }
             case CSTRINGOID:
             {
-                FillInVec(ptr, pstrdup(PG_GETARG_CSTRING(i)));
+                vec[i - start].ptr = pstrdup(PG_GETARG_CSTRING(i));
                 break;
             }
             case NUMERICOID:
             {
-                FillInVec(floating, DatumGetFloat8(DirectFunctionCall1(numeric_float8, PG_GETARG_DATUM(i))));
+                vec[i - start].floating = DatumGetFloat8(DirectFunctionCall1(numeric_float8, PG_GETARG_DATUM(i)));
                 break;
             }
             default:
             {
-                ereport(ERROR, (errmsg("%d type don't support!", get_fn_expr_argtype(fcinfo->flinfo, start))));
+                ereport(ERROR, (errmsg("%d type don't support!", get_fn_expr_argtype(fcinfo->flinfo, i))));
                 break;
             }
         }

@@ -108,7 +108,7 @@ fetch_next_from_predicted_batch(PG_FUNCTION_ARGS, bool ret_float8)
 }
 
 Datum
-pg_predict_batch_final_float8(PG_FUNCTION_ARGS)
+pg_predict_batch_final_float(PG_FUNCTION_ARGS)
 {
     Args* final_ret = fetch_next_from_predicted_batch(fcinfo, true);
 
