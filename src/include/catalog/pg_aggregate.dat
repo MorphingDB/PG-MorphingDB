@@ -589,4 +589,16 @@
   aggfinalfn => 'dense_rank_final', aggfinalextra => 't', aggfinalmodify => 'w',
   aggmfinalmodify => 'w', aggtranstype => 'internal' },
 
+# aidb model batch infer
+{ aggfnoid => 'pg_predict_batch_float', 
+  aggtransfn => 'pg_predict_batch_float',  aggfinalfn => 'pg_predict_batch_float', aggtranstype => 'internal',
+  aggmtransfn => 'pg_predict_batch_accum', aggminvtransfn => 'pg_predict_batch_accum_inv',
+  aggmfinalfn => 'pg_predict_batch_final_float', aggtransspace => '0', 
+  aggmtranstype => 'internal', aggmtransspace => '48' }, # 28 is ok, but give it more mem
+{ aggfnoid => 'pg_predict_batch_text', 
+  aggtransfn => 'pg_predict_batch_text',  aggfinalfn => 'pg_predict_batch_text', aggtranstype => 'internal',
+  aggmtransfn => 'pg_predict_batch_accum', aggminvtransfn => 'pg_predict_batch_accum_inv',
+  aggmfinalfn => 'pg_predict_batch_final_text', aggtransspace => '0', 
+  aggmtranstype => 'internal', aggmtransspace => '48' }, # 28 is ok, but give it more mem
+
 ]

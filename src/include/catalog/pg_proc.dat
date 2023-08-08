@@ -10714,6 +10714,34 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
   provariadic => 'any', proargmodes => '{i, i, v}',
   proargtypes => 'cstring cstring any', prosrc => 'pg_predict_text' },
 
+# batch predict function
+{ oid => '6127', descr => 'predict function batch accumulate',
+  proname => 'pg_predict_batch_accum', prorettype => 'internal', proisstrict => 'f',
+  provariadic => 'any', proargmodes => '{i, i, i, v}',
+  proargtypes => 'internal cstring cstring any', prosrc => 'pg_predict_batch_accum' },
+
+{ oid => '6128', descr => 'predict function batch accumulate inverse',
+  proname => 'pg_predict_batch_accum_inv', prorettype => 'internal', proisstrict => 'f',
+  provariadic => 'any', proargmodes => '{i, i, i, v}',
+  proargtypes => 'internal cstring cstring any', prosrc => 'pg_predict_batch_accum_inv' },
+
+{ oid => '6129', descr => 'predict function batch return float8',
+  proname => 'pg_predict_batch_final_float', prorettype => 'float8', proisstrict => 'f',
+  proargtypes => 'internal', prosrc => 'pg_predict_batch_final_float' },
+
+{ oid => '6130', descr => 'predict function batch return text',
+  proname => 'pg_predict_batch_final_text', prorettype => 'text', proisstrict => 'f',
+  proargtypes => 'internal', prosrc => 'pg_predict_batch_final_text' },
+
+{ oid => '6131', descr => 'interface for batch infer float8', prokind => 'a',
+  proname => 'pg_predict_batch_float', proisstrict => 'f', provariadic => 'any', 
+  prorettype => 'float8', proargtypes => 'cstring cstring any', proargmodes => '{i, i, v}',
+  prosrc => 'aggregate_dummy' },
+  
+{ oid => '6132', descr => 'interface for batch infer text', prokind => 'a',
+  proname => 'pg_predict_batch_text', proisstrict => 'f', provariadic => 'any', 
+  prorettype => 'text', proargtypes => 'cstring cstring any', proargmodes => '{i, i, v}',
+  prosrc => 'aggregate_dummy' },
 
 ]
 

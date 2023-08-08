@@ -33,6 +33,7 @@ model_manager_load_model(ModelManager *manager, const char *model_path)
         return true;
     }
     catch (const std::exception& e) {
+        ereport(ERROR, (errmsg("load model failed, error message: %s", e.what())));
         return false;
     }
 }
@@ -109,7 +110,7 @@ model_manager_set_cuda(ModelManager *manager, const char *model_path)
                 manager->module_handle_[model_path].second = at::kCUDA;
                 manager->module_handle_[model_path].first.to(at::kCUDA);
                 manager->module_handle_[model_path].first.eval();
-                ereport(INFO, (errmsg("libtorch use gpu!")));
+                ereport(INFO, (errmsg("%s use gpu!", model_path)));
                 return true;
             }
             return false;
@@ -133,7 +134,19 @@ bool
 model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input_tensor, Args *args)
 {
     if(manager->module_preprocess_functions_.find(model_path) != manager->module_preprocess_functions_.end()){
-        return manager->module_preprocess_functions_[model_path](input_tensor, args);
+        if(manager->module_preprocess_functions_[model_path](input_tensor, args)){
+            if(manager->module_handle_.find(model_path) != manager->module_handle_.end()){
+                for(auto& tensor : input_tensor){
+                    tensor = tensor.toTensor().to(manager->module_handle_[model_path].second);
+                }
+                return true;
+            }else{
+                ereport(ERROR, (errmsg("model:%s handle not exist!", model_path)));
+            }
+        }else{
+            return false;
+        }
+        
     }
     return false;
 }
@@ -210,6 +223,7 @@ model_manager_predict(ModelManager *manager, const char *model_path, torch::jit:
         return true;
     }
     catch (const std::exception& e) {
+        ereport(ERROR, (errmsg("predict error, error message:%s", e.what())));
         return false;
     }
 }
@@ -225,6 +239,7 @@ model_manager_predict_multi_input(ModelManager *manager, const char *model_path,
         return true;
     }
     catch (const std::exception& e) {
+        ereport(ERROR, (errmsg("muti predict error, error message:%s", e.what())));
         return false;
     }
 }
