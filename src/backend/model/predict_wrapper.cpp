@@ -58,40 +58,42 @@ Args*
 makeVecFromArgs(FunctionCallInfo fcinfo, int start, int dim) 
 {
     Args* vec = (Args*) palloc0(sizeof(Args) * dim);
-    Oid ele_type = get_fn_expr_argtype(fcinfo->flinfo, start);
-    switch (ele_type) {
-        case INT4OID:
-        case INT2OID:
-        case INT8OID:
-        {
-            FillInVec(integer, PG_GETARG_INT32(i));
-            break;
-        }
-        case FLOAT4OID:
-        case FLOAT8OID:
-        {
-            FillInVec(integer, PG_GETARG_FLOAT8(i));
-            break;
-        }
-        case TEXTOID:
-        {
-            FillInVec(ptr, TextDatumGetCString(PG_GETARG_DATUM(i)));
-            break;
-        }
-        case CSTRINGOID:
-        {
-            FillInVec(ptr, pstrdup(PG_GETARG_CSTRING(i)));
-            break;
-        }
-        case NUMERICOID:
-        {
-            FillInVec(floating, DatumGetFloat8(DirectFunctionCall1(numeric_float8, PG_GETARG_DATUM(i))));
-            break;
-        }
-        default:
-        {
-            ereport(ERROR, (errmsg("%d type don't support!", get_fn_expr_argtype(fcinfo->flinfo, start))));
-            break;
+    for (int i = start; i < dim + start; i++){
+        Oid ele_type = get_fn_expr_argtype(fcinfo->flinfo, i);
+        switch (ele_type) {
+            case INT4OID:
+            case INT2OID:
+            case INT8OID:
+            {
+                FillInVec(integer, PG_GETARG_INT32(i));
+                break;
+            }
+            case FLOAT4OID:
+            case FLOAT8OID:
+            {
+                FillInVec(integer, PG_GETARG_FLOAT8(i));
+                break;
+            }
+            case TEXTOID:
+            {
+                FillInVec(ptr, TextDatumGetCString(PG_GETARG_DATUM(i)));
+                break;
+            }
+            case CSTRINGOID:
+            {
+                FillInVec(ptr, pstrdup(PG_GETARG_CSTRING(i)));
+                break;
+            }
+            case NUMERICOID:
+            {
+                FillInVec(floating, DatumGetFloat8(DirectFunctionCall1(numeric_float8, PG_GETARG_DATUM(i))));
+                break;
+            }
+            default:
+            {
+                ereport(ERROR, (errmsg("%d type don't support!", get_fn_expr_argtype(fcinfo->flinfo, start))));
+                break;
+            }
         }
     }
     return vec;
@@ -118,12 +120,12 @@ wait_and_check_error(std::vector<std::thread> &pool, std::vector<int> &res, int 
     return has_error;
 }
 
+
 #define CLEAN_UP_CPP_OBJS() \
 input_tensors.clear();      \
-batch_inputs_tmp.clear();   \
 input_batch_tensor.clear(); \
-output_tensor.~IValue();    \
-output_tensors.clear()
+output.~IValue();    \
+outputs.clear()
 
 #define WAIT_AND_CHECK_ERROR(stage)                            \
 if (wait_and_check_error(pool, res, prcsd_batch_n))            \
@@ -134,6 +136,53 @@ if (wait_and_check_error(pool, res, prcsd_batch_n))            \
 
 #define CLOCK_START() auto start = std::chrono::system_clock::now()
 #define CLOCK_END(type) state->type##_time += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start).count()
+
+static std::vector<torch::jit::IValue>
+split_results_one_level(torch::jit::IValue res) {
+    std::vector<torch::jit::IValue> rets;
+    if (res.isTensor()) {
+        auto&& tensors = torch::split(res.toTensor(), 1, 0);
+        for (auto&& t: tensors) {
+            rets.emplace_back(torch::jit::IValue(std::move(t)));
+        }
+    } else if (res.isList()) {
+        auto&& list = res.toList();
+        for (auto&& it: list) {
+            rets.emplace_back(std::move(it));
+        }
+    } else if (res.isTuple()) {
+        auto&& eles = res.toTuple()->elements();
+        for (auto&& e : eles) {
+            rets.emplace_back(torch::jit::IValue(std::move(c10::ivalue::Tuple::create(e))));
+        }
+    }
+    return rets;
+}
+
+static std::vector<torch::jit::IValue>
+split_results(torch::jit::IValue output) {
+    std::vector<torch::jit::IValue> ret;
+    if (output.isTensor()) {
+        return split_results_one_level(output);
+    } else if (output.isTuple()) {
+        std::vector<std::vector<torch::jit::IValue>> cols;
+        for (auto&& it : output.toTuple()->elements()) {
+            cols.emplace_back(split_results_one_level(std::move(it)));
+        }
+        // col to row
+        int row_num = cols[0].size();
+        std::vector<torch::jit::IValue> row;
+        for (int i = 0; i < row_num; i++) {
+            for (unsigned int j = 0; j < cols.size(); j++) {
+                row.emplace_back(std::move(cols[j][i]));
+            }
+            ret.emplace_back(torch::jit::IValue(c10::ivalue::Tuple::create(std::move(row))));
+        }
+        return ret;
+    } 
+    return ret;
+}
+
 
 void
 infer_batch_internal(VecAggState *state, bool ret_float8)
@@ -162,10 +211,11 @@ infer_batch_internal(VecAggState *state, bool ret_float8)
     std::vector<std::thread> pool;
     std::vector<int> res(prcsd_batch_n, 0);
     std::vector<std::vector<torch::jit::IValue>> input_tensors(prcsd_batch_n, std::vector<torch::jit::IValue>());
-    std::vector<at::Tensor> batch_inputs_tmp;
+    //std::vector<std::vector<at::Tensor>> batch_inputs_tmp;
     std::vector<torch::jit::IValue> input_batch_tensor;
-    std::vector<at::Tensor> output_tensors;
-    torch::jit::IValue output_tensor;
+    torch::jit::IValue output;
+    std::vector<torch::jit::IValue> outputs; // batch of tuples<tensor|list|tuple> or tensors
+
     // 3. 输入预处理
     {
         CLOCK_START();
@@ -185,12 +235,17 @@ infer_batch_internal(VecAggState *state, bool ret_float8)
     {
         CLOCK_START();
 
-        for (auto& data: input_tensors) {
-            batch_inputs_tmp.emplace_back(data[0].toTensor());
+        int each_input_tensor_size = (input_tensors.size() != 0 ? input_tensors[0].size() : 0);
+        input_batch_tensor.resize(each_input_tensor_size);
+        for(int i = 0; i < each_input_tensor_size; ++i) {
+            std::vector<at::Tensor> col_tensors(prcsd_batch_n);
+            for(int j = 0; j < prcsd_batch_n; ++j){
+                col_tensors[j] = input_tensors[j][i].toTensor();
+            }
+            input_batch_tensor[i] = (torch::concat(col_tensors, 0));
         }
-        input_batch_tensor.emplace_back(torch::concat(batch_inputs_tmp, 0));
 
-        if(!model_manager_predict_multi_input(&model_manager, model_path, input_batch_tensor, output_tensor)) {
+        if(!model_manager_predict_multi_input(&model_manager, model_path, input_batch_tensor, output)) {
             CLEAN_UP_CPP_OBJS();
             ereport(ERROR, (errmsg("%s:predict error!", model_path)));
         }
@@ -203,20 +258,25 @@ infer_batch_internal(VecAggState *state, bool ret_float8)
     {
         CLOCK_START();
 
-        output_tensors = torch::split(output_tensor.toTensor(), 1, 0);
+        outputs = split_results(output);
+        if (outputs.empty()) {
+            CLEAN_UP_CPP_OBJS();
+            ereport(ERROR, (errmsg("cannot handle the result type from model!")));
+        }
+
         for (int i = 0; i < prcsd_batch_n; i++)
             state->outs = lappend(state->outs, palloc0(sizeof(Args)));
 
         for (int i = 0; i < prcsd_batch_n; i++) {
             pool.emplace_back([&, i](){
                 Args* in = (Args*)list_nth(state->ins, i);
-                torch::jit::IValue wrapped_tensor(output_tensors[i]);
+                torch::jit::IValue wrapped_out(outputs[i]);
                 if (ret_float8) {
                     float8& out = ((Args*)list_nth(state->outs, i))->floating;
-                    res[i] = model_manager_output_process_float(&model_manager, model_path, wrapped_tensor, in, out);
+                    res[i] = model_manager_output_process_float(&model_manager, model_path, wrapped_out, in, out);
                 } else {
                     std::string result_str;
-                    res[i] = model_manager_output_process_text(&model_manager, model_path, wrapped_tensor, in, result_str);   
+                    res[i] = model_manager_output_process_text(&model_manager, model_path, wrapped_out, in, result_str);   
                     ((Args*)list_nth(state->outs, i))->ptr = pstrdup(result_str.c_str());
                 }
             });
@@ -237,6 +297,11 @@ predict_float(const char* model_name, const char* cuda, Args* args)
     char* model_path = nullptr;
     std::vector<torch::jit::IValue> input_tensor;
     torch::jit::IValue output_tensor;
+
+    int64_t total_time = 0;
+    int64_t pre_time = 0;
+    int64_t predict_time = 0;
+    int64_t after_time = 0;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -263,18 +328,39 @@ predict_float(const char* model_name, const char* cuda, Args* args)
         
     // }
     // 3. 输入预处理
+    auto start_time = std::chrono::system_clock::now();
     if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
         ereport(ERROR, (errmsg("%s:preprocess error!", model_path)));
     } 
+    pre_time  = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
+
     // 4. 预测
+    start_time = std::chrono::system_clock::now();
     if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
         ereport(ERROR, (errmsg("%s:predict error!", model_path)));
     }
+    predict_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
+
     // 5. 结果处理
     float8 result;
+    start_time = std::chrono::system_clock::now();
     if(!model_manager_output_process_float(&model_manager, model_path, output_tensor, args, result)){
         ereport(ERROR, (errmsg("%s OutputProcessFloat callback is empty!", model_path)));
     }
+    after_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
+
+    total_time = pre_time + predict_time + after_time;
+
+    if(Debug_print_batch_time == true){
+        ereport(NOTICE, 
+                (errmsg(" pre process: %ld ms(%.2f%%)\n"
+                        " infer: %ld ms(%.2f%%)\n"
+                        " post process: %ld ms(%.2f%%)",
+                        pre_time, (pre_time / (float)total_time) * 100, 
+                        predict_time, (predict_time / (float)total_time)  * 100, 
+                        after_time, (after_time / (float)total_time  * 100))));
+    }
+
     // ereport(INFO, (errmsg("after: %f", result)));
     return result;
 }
@@ -285,6 +371,11 @@ predict_text(const char* model_name, const char* cuda, Args* args)
     char* model_path = nullptr;
     std::vector<torch::jit::IValue> input_tensor;
     torch::jit::IValue output_tensor;
+
+    int64_t total_time = 0;
+    int64_t pre_time = 0;
+    int64_t predict_time = 0;
+    int64_t after_time = 0;
     
     if(strlen(model_name) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
@@ -309,18 +400,37 @@ predict_text(const char* model_name, const char* cuda, Args* args)
     }
 
     // 3. 输入预处理
+    auto start_time = std::chrono::system_clock::now();
     if(!model_manager_pre_process(&model_manager, model_path, input_tensor, args)){
         ereport(ERROR, (errmsg("%s:preprocess error!", model_path)));
     }
+    pre_time  = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
+
     // 4. 预测
+    start_time = std::chrono::system_clock::now();
     if(!model_manager_predict_multi_input(&model_manager, model_path, input_tensor, output_tensor)){
         ereport(ERROR, (errmsg("%s:predict error!", model_path)));
     }
+    predict_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
     // 5. 结果处理
     text* result = nullptr;
     std::string result_str;
+    start_time = std::chrono::system_clock::now();
     if(!model_manager_output_process_text(&model_manager, model_path, output_tensor, args, result_str)){
         ereport(ERROR, (errmsg("%s OutputProcessFloat callback is empty!", model_path)));
+    }
+    after_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start_time).count();
+
+    total_time = pre_time + predict_time + after_time;
+
+    if(Debug_print_batch_time == true){
+        ereport(NOTICE, 
+                (errmsg(" pre process: %ld ms(%.2f%%)\n"
+                        " infer: %ld ms(%.2f%%)\n"
+                        " post process: %ld ms(%.2f%%)",
+                        pre_time, (pre_time / (float)total_time) * 100, 
+                        predict_time, (predict_time / (float)total_time)  * 100, 
+                        after_time, (after_time / (float)total_time  * 100))));
     }
 
     result = (text*)palloc(result_str.size() + VARHDRSZ);
