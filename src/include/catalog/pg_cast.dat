@@ -512,4 +512,20 @@
 { castsource => 'jsonb', casttarget => 'float8', castfunc => 'float8(jsonb)',
   castcontext => 'e', castmethod => 'f' },
 
+# float4[] float8[] integer[] text to vector
+{ castsource => '1007', casttarget => 'vector', castfunc => 'array_to_vector(1007)',
+  castcontext => 'i', castmethod => 'f' },
+
+{ castsource => '1021', casttarget => 'vector', castfunc => 'array_to_vector(1021)',
+  castcontext => 'i', castmethod => 'f' },
+
+{ castsource => '1022', casttarget => 'vector', castfunc => 'array_to_vector(1022)',
+  castcontext => 'i', castmethod => 'f' },
+
+{ castsource => 'text', casttarget => 'vector', castfunc => 'text_to_vector(text)',
+  castcontext => 'i', castmethod => 'f' },
+  
+# vector to float4
+{ castsource => 'vector', casttarget => '1021', castfunc => 'get_vector(vector)',
+  castcontext => 'i', castmethod => 'f' },
 ]

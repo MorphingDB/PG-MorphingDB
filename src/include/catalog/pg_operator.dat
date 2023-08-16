@@ -3264,4 +3264,16 @@
   oprresult => 'bool', oprcode => 'jsonb_path_match_opr(jsonb,jsonpath)',
   oprrest => 'contsel', oprjoin => 'contjoinsel' },
 
+{ oid => '6162', descr => 'vector add',
+  oprname => '+', oprleft => 'vector', oprright => 'vector',
+  oprresult => 'vector', oprcode => 'vector_add' },
+
+{ oid => '6163', descr => 'vector sub',
+  oprname => '-', oprleft => 'vector', oprright => 'vector',
+  oprresult => 'vector', oprcode => 'vector_sub' },
+
+{ oid => '6164', descr => 'vector equal',
+  oprname => '==', oprleft => 'vector', oprright => 'vector',
+  oprresult => 'bool', oprcode => 'vector_equal' },
+
 ]
