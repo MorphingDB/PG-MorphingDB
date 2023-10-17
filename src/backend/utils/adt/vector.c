@@ -6,7 +6,7 @@
 #include "utils/builtins.h"
 #include "utils/array.h"
 #include "utils/vector.h"
-
+#include <stdbool.h>
 
 #define INIT_VECTOR 
 
@@ -24,10 +24,151 @@ is_space(char ch)
 }
 
 
+Vector* 
+new_vector(unsigned int dim, unsigned int shape_size)
+{
+    Vector* vector;
+    
+    if(dim >= MAX_VECTOR_DIM){
+
+    }
+
+    if(shape_size >= MAX_VECTOR_SHAPE_SIZE){
+
+    }
+
+    vector = (Vector*)palloc(VECTOR_SIZE(dim));
+    vector->dim = dim;
+    vector->shape_size = shape_size;
+
+    SET_VARSIZE(vector, VECTOR_SIZE(dim));
+
+    return vector;
+}
+
+void 
+free_vector(Vector* vector)
+{
+    if(vector == NULL){
+        return;
+    }
+    pfree(vector);
+    vector = NULL;
+}
+
+static inline bool
+shape_equal(Vector* vector_left, Vector* vector_right)
+{
+    if(vector_left == NULL || vector_right == NULL){
+        return false;
+    }
+
+    if(vector_left->shape_size != vector_right->shape_size){
+        return false;
+    }
+
+    for(int i=0; i<vector_left->shape_size; ++i){
+        if(vector_left->shape[i] != vector_right->shape[i]){
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+    parse vector shape
+*/
 static inline void 
-parse_vector_str(char *str, unsigned int* dim, float* x)
+parse_vector_shape_str(char* shape_str, unsigned int* shape_size, int* shape)
+{
+    char* str_copy = pstrdup(shape_str);
+    char* pt = NULL;
+    char* end = NULL;
+
+    while(is_space(*shape_str)){
+        shape_str++;
+    }
+
+    if (*shape_str != '{'){
+        ereport(ERROR,
+				 errmsg("Vector shape must start with \"{\"."));
+    }
+
+    shape_str++;
+    pt = strtok(shape_str, ",");
+    end = pt;
+
+    while (pt != NULL && *end != '}') {
+        if (*shape_size == MAX_VECTOR_SHAPE_SIZE) {
+            ereport(ERROR,
+					(errmsg("vector shape cannot have more than %d", MAX_VECTOR_SHAPE_SIZE)));
+        }
+
+        while (is_space(*pt)){
+            pt++;
+        }
+
+        if (*pt == '\0') {
+            ereport(ERROR,
+					(errmsg("invalid input syntax for type vector shape: \"%s\"", str_copy)));
+        }
+
+        shape[*shape_size] = strtof(pt, &end);
+
+        (*shape_size)++;
+
+        if(end == pt){
+            ereport(ERROR,
+					(errmsg("invalid input syntax for type vector shape: \"%s\"", str_copy)));
+        }
+
+        while(is_space(*end)){
+            end++;
+        }
+
+        if (*end != '\0' && *end != '}'){
+            ereport(ERROR,
+					(errmsg("invalid input syntax for type vector shape: \"%s\"", str_copy)));
+        }
+
+        pt = strtok(NULL, ",");
+    }
+
+    if (end == NULL || *end != '}'){
+        ereport(ERROR,
+					(errmsg("malformed vector literal4: \"%s\"", str_copy)));
+    }
+
+    end++;
+
+    while (is_space(*end)){
+        end++;
+    }
+
+    for(pt = str_copy + 1; *pt != '\0'; pt++){
+        if (pt[-1] == ',' && *pt == ','){
+            ereport(ERROR,
+					(errmsg("malformed vector literal5: \"%s\"", str_copy)));
+        }
+    }
+
+    if(*shape_size < 1){
+        ereport(ERROR,
+					(errmsg("vector must have at least 1 dimension")));
+    }
+
+    pfree(str_copy);
+}
+
+static inline void 
+parse_vector_str(char* str, unsigned int* dim, float* x,
+                 unsigned int* shape_size, int32* shape)
 {
     char* str_copy = pstrdup(str);
+    char* index = str_copy;
+    char* pt = NULL;
+    char* end = NULL;
+
     while(is_space(*str)){
         str++;
     }
@@ -38,8 +179,8 @@ parse_vector_str(char *str, unsigned int* dim, float* x)
     }
 
     str++;
-    char* pt = strtok(str, ",");
-    char* end = pt;
+    pt = strtok(str, ",");
+    end = pt;
 
     while (pt != NULL && *end != ']') {
         if (*dim == MAX_VECTOR_DIM) {
@@ -79,7 +220,7 @@ parse_vector_str(char *str, unsigned int* dim, float* x)
 
     if (end == NULL || *end != ']'){
         ereport(ERROR,
-					(errmsg("malformed vector literal: \"%s\"", str_copy)));
+					(errmsg("malformed vector literal3: \"%s\"", str_copy)));
     }
 
     end++;
@@ -88,15 +229,27 @@ parse_vector_str(char *str, unsigned int* dim, float* x)
         end++;
     }
 
-    if (*end != '\0'){
-        ereport(ERROR,
-					(errmsg("malformed vector literal: \"%s\"", str_copy)));
+    switch (*end) {
+        case '{':
+            while(*str_copy != '{'){
+                str_copy++;
+            }
+            parse_vector_shape_str(str_copy, shape_size, shape);
+            str_copy = index;
+            break;
+        case '\0':
+            *shape_size = 1;
+            shape[0] = (int32)(*dim);
+            break;
+        default:
+            ereport(ERROR,
+					(errmsg("malformed vector literal1: \"%s\"", str_copy)));
     }
 
     for(pt = str_copy + 1; *pt != '\0'; pt++){
         if (pt[-1] == ',' && *pt == ','){
             ereport(ERROR,
-					(errmsg("malformed vector literal: \"%s\"", str_copy)));
+					(errmsg("malformed vector literal2: \"%s\"", str_copy)));
         }
     }
 
@@ -114,19 +267,45 @@ vector_input(PG_FUNCTION_ARGS)
 {
     char            *str = NULL;
     float           x[MAX_VECTOR_DIM];
-    Vector          *vector = NULL;
+    int32           shape[MAX_VECTOR_SHAPE_SIZE];
+    Vector*         vector = NULL;
     unsigned int    dim = 0;
-
+    unsigned int    shape_size = 0;
+    unsigned int    shape_dim = 1;
+    
     str = PG_GETARG_CSTRING(0);
 
-    parse_vector_str(str, &dim, x);
 
-    vector = (Vector*)palloc(VECTOR_SIZE(dim));
-    SET_VARSIZE(vector, VECTOR_SIZE(dim));
+    parse_vector_str(str, &dim, x, &shape_size, shape);
 
-    vector->dim = dim;
+
+    // if(PG_NARGS() == 1){
+    //     shape_size = 1;
+    //     shape[0] = dim;
+    // }else{
+    //     shape_str = PG_GETARG_CSTRING(0);
+    //     ereport(INFO,
+	// 				(errmsg("shape_str:%s", shape_str)));
+    //     parse_vector_shape_str(shape_str, &shape_size, shape);
+    // }
+
+    // Verify that the multiplication of shape values equals dim
+    for(int i=0; i<shape_size; i++){
+        shape_dim *= shape[i];
+    }
+
+    if(dim != shape_dim){
+        ereport(ERROR,
+					(errmsg("the multiplication of shape values not equals, dim:%d, shape_dim:%d", dim, shape_dim)));
+    }
+    vector = new_vector(dim, shape_size);
+
     for(int i=0; i<dim; ++i){
         vector->x[i] = x[i];
+    }
+
+    for(int i=0; i<shape_size; ++i){
+        vector->shape[i] = shape[i];
     }
 
     PG_RETURN_POINTER(vector);
@@ -138,25 +317,57 @@ vector_output(PG_FUNCTION_ARGS)
     Vector* vector = NULL;
     StringInfoData result;
     unsigned int dim = 0;
+    unsigned int shape_size = 0;
 
     vector = PG_GETARG_VECTOR_P(0);
 
     dim = VECTOR_DIM(vector);
+
+    shape_size = VECTOR_SHAPE_SIZE(vector);
 
     if(dim > MAX_VECTOR_DIM){
         ereport(ERROR,
 					(errmsg("dim is larger than 10240 dim!")));
     }
 
+    if(shape_size > MAX_VECTOR_SHAPE_SIZE){
+        ereport(ERROR,
+					(errmsg("shape size is larger than 10!")));
+    }
+
     initStringInfo(&result);
     appendStringInfoChar(&result, '[');
-    for(int i=0; i<dim; ++i){
-        appendStringInfoString(&result, DatumGetCString(DirectFunctionCall1(float4out, Float4GetDatum(vector->x[i]))));
-        if (i != dim - 1) {
+    if(dim > 10){
+        for(int i=0; i<3; ++i){
+            appendStringInfoString(&result, DatumGetCString(DirectFunctionCall1(float4out, Float4GetDatum(vector->x[i]))));
             appendStringInfoChar(&result, ',');
+        }
+        appendStringInfoString(&result, "....");
+        appendStringInfoChar(&result, ',');
+        for(int i=dim-3; i<dim; ++i){
+            appendStringInfoString(&result, DatumGetCString(DirectFunctionCall1(float4out, Float4GetDatum(vector->x[i]))));
+            if (i != dim - 1) {
+                appendStringInfoChar(&result, ',');
+            }
+        }
+    }else{
+        for(int i=0; i<dim; ++i){
+            appendStringInfoString(&result, DatumGetCString(DirectFunctionCall1(float4out, Float4GetDatum(vector->x[i]))));
+            if (i != dim - 1) {
+                appendStringInfoChar(&result, ',');
+            }
         }
     }
     appendStringInfoChar(&result, ']');
+    
+    appendStringInfoChar(&result, '{');
+    for(int i=0; i<shape_size; ++i){
+        appendStringInfoString(&result, DatumGetCString(DirectFunctionCall1(int4out, Int32GetDatum(vector->shape[i]))));
+        if (i != shape_size - 1) {
+            appendStringInfoChar(&result, ',');
+        }
+    }
+    appendStringInfoChar(&result, '}');
 
     PG_RETURN_CSTRING(result.data);
 }
@@ -207,12 +418,11 @@ array_to_vector(PG_FUNCTION_ARGS)
     Oid             array_type;
     Vector          *vector = NULL;
     int             array_length;
-    unsigned int    dim = 0;
     Datum           *elems = NULL;
     bool            *nulls = NULL;
-    int16		    typlen = 0;
-	bool		    typbyval = 0;
-	char		    typalign = 0;
+    //int16		    typlen = 0;
+	//bool		    typbyval = 0;
+	//char		    typalign = 0;
 
 
     array = PG_GETARG_ARRAYTYPE_P(0);
@@ -247,7 +457,7 @@ array_to_vector(PG_FUNCTION_ARGS)
         default:
         {
             ereport(ERROR,
-					(errmsg("unsupport %d type to vector!"), array_type));
+					(errmsg("unsupport %u type to vector!", array_type)));
         }
     }
 
@@ -256,10 +466,9 @@ array_to_vector(PG_FUNCTION_ARGS)
 					(errmsg("vector cannot have more than %d dimensions", MAX_VECTOR_DIM)));
     }
 
-    vector = (Vector *)palloc(VECTOR_SIZE(array_length));
-    SET_VARSIZE(vector, VECTOR_SIZE(array_length));
+    vector = new_vector(array_length, 1);
 
-    vector->dim = array_length;
+    vector->shape[0] = array_length;
     for(int i=0; i<array_length; ++i){
         vector->x[i] = DatumGetFloat4(elems[i]);
     }
@@ -275,28 +484,42 @@ text_to_vector(PG_FUNCTION_ARGS)
     char             *str = NULL;
     Vector           *vector = NULL;
     unsigned int     dim = 0;
+    int32            shape[MAX_VECTOR_SHAPE_SIZE];
     float            x[MAX_VECTOR_DIM];
+    unsigned int     shape_size = 0;
+    unsigned int     shape_dim = 1;
 
     str = TextDatumGetCString(PG_GETARG_DATUM(0));
 
-    parse_vector_str(str, &dim, x);
+    parse_vector_str(str, &dim, x, &shape_size, shape);
 
-    vector = (Vector*)palloc(VECTOR_SIZE(dim));
-    SET_VARSIZE(vector, VECTOR_SIZE(dim));
+    for(int i=0; i<shape_size; i++){
+        shape_dim *= shape[i];
+    }
 
-    vector->dim = dim;
+    if(dim != shape_dim){
+        ereport(ERROR,
+					(errmsg("the multiplication of shape values not equals, dim:%d, shape_dim:%d", dim, shape_dim)));
+    }
+
+    vector = new_vector(dim, shape_size);
+    
     for(int i=0; i<dim; ++i){
         vector->x[i] = x[i];
+    }
+
+    for(int i=0; i<shape_size; ++i){
+        vector->shape[i] = shape[i];
     }
 
     PG_RETURN_POINTER(vector);
 }
 
 Datum
-get_vector(PG_FUNCTION_ARGS)
+get_vector_data(PG_FUNCTION_ARGS)
 {
     Vector	        *vector = NULL;
-    float           x[MAX_VECTOR_DIM];
+    //float           x[MAX_VECTOR_DIM];
     ArrayType       *result = NULL;
     Datum           *elems = NULL; 
     unsigned int    dim = 0;
@@ -318,6 +541,31 @@ get_vector(PG_FUNCTION_ARGS)
 }
 
 Datum
+get_vector_shape(PG_FUNCTION_ARGS)
+{
+    Vector	        *vector = NULL;
+    //float           x[MAX_VECTOR_DIM];
+    ArrayType       *result = NULL;
+    Datum           *elems = NULL; 
+    unsigned int    shape_size = 0;
+    
+    vector = PG_GETARG_VECTOR_P(0);
+
+    shape_size = vector->shape_size;
+
+    elems = (Datum *)palloc(sizeof(Datum *) * shape_size);
+
+    for(int i=0; i<shape_size; ++i){
+        elems[i] = Int32GetDatum(vector->shape[i]);
+    }
+
+    result = construct_array(elems, shape_size, INT4OID, sizeof(int32), true, 'i');
+
+    pfree(elems);
+    PG_RETURN_ARRAYTYPE_P(result);
+}
+
+Datum
 vector_add(PG_FUNCTION_ARGS)
 {
     Vector	        *vector_left = NULL;
@@ -332,6 +580,11 @@ vector_add(PG_FUNCTION_ARGS)
     if(vector_left->dim != vector_right->dim){
         ereport(ERROR,
 					(errmsg("the two vectors have different dimensions!")));
+    }
+
+    if(!shape_equal(vector_left, vector_right)){
+        ereport(ERROR,
+					(errmsg("the two vectors have different shape!")));
     }
 
     dim = vector_left->dim;
@@ -369,6 +622,11 @@ vector_sub(PG_FUNCTION_ARGS)
 					(errmsg("the two vectors have different dimensions!")));
     }
 
+    if(!shape_equal(vector_left, vector_right)){
+        ereport(ERROR,
+					(errmsg("the two vectors have different shape!")));
+    }
+
     dim = vector_left->dim;
 
     result = (Vector*)palloc(VECTOR_SIZE(dim));
@@ -398,6 +656,10 @@ vector_equal(PG_FUNCTION_ARGS)
 
 
     if(vector_left->dim != vector_right->dim){
+        PG_RETURN_BOOL(false);
+    }
+
+    if(!shape_equal(vector_left, vector_right)){
         PG_RETURN_BOOL(false);
     }
 

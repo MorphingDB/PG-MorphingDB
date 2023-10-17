@@ -7,10 +7,11 @@
 subdir = src/backend/utils/adt
 top_builddir = ../../../..
 include $(top_builddir)/src/Makefile.global
+LIBTORCH_DIR = ${top_builddir}/third_party/libtorch
+LIBTORCH_INCLUDES = -I$(LIBTORCH_DIR)/include -I$(LIBTORCH_DIR)/include/torch/csrc/api/include
 
 
-
-override CPPFLAGS := -I. -I$(srcdir) $(CPPFLAGS) 
+override CPPFLAGS := -I. $(srcdir) $(CPPFLAGS) $(LIBTORCH_INCLUDES) -D_GLIBCXX_USE_CXX11_ABI=0
 
 # keep this list arranged alphabetically or it gets to be a mess
 OBJS = acl.o amutils.o arrayfuncs.o array_expanded.o array_selfuncs.o \
@@ -35,7 +36,7 @@ OBJS = acl.o amutils.o arrayfuncs.o array_expanded.o array_selfuncs.o \
 	tsquery_op.o tsquery_rewrite.o tsquery_util.o tsrank.o \
 	tsvector.o tsvector_op.o tsvector_parser.o \
 	txid.o uuid.o varbit.o varchar.o varlena.o version.o \
-	windowfuncs.o xid.o xml.o model_res.o predict.o vector.o
+	windowfuncs.o xid.o xml.o model_res.o predict.o vector.o vector_tensor.o
 
 jsonpath_scan.c: FLEXFLAGS = -CF -p -p
 jsonpath_scan.c: FLEX_NO_BACKUP=yes
