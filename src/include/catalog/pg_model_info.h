@@ -10,7 +10,7 @@
 #include "catalog/pg_model_info_d.h"
 
 
-CATALOG(pg_model_info,2023,ModelInfoRelationId) 
+CATALOG(model_info,2023,ModelInfoRelationId) 
 {
 	
 	/* model name */

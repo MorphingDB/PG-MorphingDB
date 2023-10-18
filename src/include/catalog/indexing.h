@@ -187,7 +187,7 @@ DECLARE_UNIQUE_INDEX(pg_largeobject_metadata_oid_index, 2996, on pg_largeobject_
 #define LargeObjectMetadataOidIndexId	2996
 
 
-DECLARE_UNIQUE_INDEX(pg_model_info_name_index, 2030, on pg_model_info using btree(modelname name_ops));
+DECLARE_UNIQUE_INDEX(pg_model_info_name_index, 2030, on model_info using btree(modelname name_ops));
 #define ModelInfoNameIndex 2030
 
 DECLARE_UNIQUE_INDEX(pg_namespace_nspname_index, 2684, on pg_namespace using btree(nspname name_ops));

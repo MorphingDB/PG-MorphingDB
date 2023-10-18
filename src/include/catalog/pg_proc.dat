@@ -10704,13 +10704,13 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
 
 # predict function
 { oid => '6125', descr => 'predict function return float',
-  proname => 'pg_predict_float', prorettype => 'float8', proisstrict => 'f',
+  proname => 'predict_float', prorettype => 'float8', proisstrict => 'f',
   provariadic => 'any', proargmodes => '{i, i, v}', 
   proargtypes => 'cstring cstring any', prosrc => 'pg_predict_float' },
 
 
 { oid => '6126', descr => 'predict function return text',
-  proname => 'pg_predict_text', prorettype => 'text', proisstrict => 'f',
+  proname => 'predict_text', prorettype => 'text', proisstrict => 'f',
   provariadic => 'any', proargmodes => '{i, i, v}',
   proargtypes => 'cstring cstring any', prosrc => 'pg_predict_text' },
 
@@ -10788,9 +10788,13 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
   proname => 'text_to_vector', prorettype => 'vector', proargtypes => 'text',
   prosrc => 'text_to_vector' },
 
-{ oid => '6161', descr => 'convert vector to float4[]',
-  proname => 'get_vector', prorettype => '1021', proargtypes => 'vector',
-  prosrc => 'get_vector' },
+{ oid => '6161', descr => 'convert vector data to float4[]',
+  proname => 'get_vector_data', prorettype => '1021', proargtypes => 'vector',
+  prosrc => 'get_vector_data' },
+
+{ oid => '6165', descr => 'convert vector shape to float4[]',
+  proname => 'get_vector_shape', prorettype => '1007', proargtypes => 'vector',
+  prosrc => 'get_vector_shape' },
 
 ]
 
