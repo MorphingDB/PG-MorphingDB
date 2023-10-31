@@ -6,7 +6,7 @@ extern "C"{
 Vector* 
 tensor_to_vector(torch::Tensor& tensor)
 {
-    uint32 dim = tensor.dim();
+    uint32 dim = tensor.numel();
     uint32 shape_size = tensor.sizes().size();
 
 
@@ -17,9 +17,9 @@ tensor_to_vector(torch::Tensor& tensor)
     }
 
     torch::Tensor flattened_tensor = tensor.view({-1});
-    auto accessor = flattened_tensor.accessor<float, 1>();
+    float* data_ptr = flattened_tensor.data_ptr<float>();
     for (int i = 0; i < flattened_tensor.numel(); ++i) {
-        vector->x[i] = accessor[i];
+        vector->x[i] = data_ptr[i];
     }
 
     return vector;

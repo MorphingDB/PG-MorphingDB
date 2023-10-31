@@ -607,6 +607,7 @@
   descr => 'vector storage',
   typname => 'vector', typlen => '-1', typbyval => 'f', typcategory => 'A',
   typinput => 'vector_input', typoutput => 'vector_output',
-  typreceive => 'vector_receive', typsend => 'vector_send', typalign => 'i' },  
+  typreceive => 'vector_receive', typsend => 'vector_send', 
+  typalign => 'i', typstorage => 'e' },  
 
 ]

@@ -525,7 +525,13 @@
 { castsource => 'text', casttarget => 'vector', castfunc => 'text_to_vector(text)',
   castcontext => 'i', castmethod => 'f' },
   
-# vector to float4
-{ castsource => 'vector', casttarget => '1021', castfunc => 'get_vector(vector)',
+# vector data to float4
+{ castsource => 'vector', casttarget => '1021', castfunc => 'get_vector_data(vector)',
+  castcontext => 'i', castmethod => 'f' },
+
+# vector shape to float4
+{ castsource => 'vector', casttarget => '1007', castfunc => 'get_vector_shape(vector)',
   castcontext => 'i', castmethod => 'f' },
 ]
+
+

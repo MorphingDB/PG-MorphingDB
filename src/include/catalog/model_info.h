@@ -7,7 +7,7 @@
 #define PG_MODEL_INFO_H
 
 #include "catalog/genbki.h"
-#include "catalog/pg_model_info_d.h"
+#include "catalog/model_info_d.h"
 
 
 CATALOG(model_info,2023,ModelInfoRelationId) 

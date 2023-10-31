@@ -10,17 +10,22 @@
 #include "access/htup_details.h"
 #include "access/genam.h"
 #include "catalog/indexing.h"
-#include "catalog/pg_model_info.h"
+#include "catalog/model_info.h"
+#include "catalog/model_layer_info.h"
 #include "commands/mdcommands.h"
 #include "common/model_md5.h"
 #include "common/relpath.h"
 #include "libpq/libpq-fs.h"
 #include "model/libtorch_wrapper.h"
+#include "model/predict_wrapper.h"
+#include "storage/lockdefs.h"
 #include "utils/acl.h"
 #include "utils/builtins.h"
+#include "utils/elog.h"
 #include "utils/fmgroids.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
+#include "utils/catcache.h"
 #include "utils/timestamp.h"
 
 
@@ -39,22 +44,36 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     char *filename = psprintf("%s/%s/%s",DataDir, dbDir, stmt->mdname);
     export_large_object(stmt->looid, filename, stmt->md5);
 
-    Datum		new_record[Natts_pg_model_info];
-	bool		new_record_nulls[Natts_pg_model_info];
+    Datum		new_record[Natts_model_info];
+	bool		new_record_nulls[Natts_model_info];
+    Datum		new_layer_record[Natts_model_layer_info];
+	bool		new_layer_record_nulls[Natts_model_layer_info];
+
     HeapTuple	tuple;
     Relation	pg_model_info_rel;
+    Relation    pg_model_layer_info_rel;
 
     char        *mdname = stmt->mdname;
     char        *desc   = stmt->desc;
     char        *md5 = stmt->md5;
     char        *user = GetUserNameFromId(GetUserId(), false);
 
+    ModelLayer  *model_layer = NULL;
+    uint32       layer_size = 0;
+
     // 先判断是否已经存在同名的model
     if(SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
         ereport(ERROR,
 				(errcode(ERRCODE_DUPLICATE_MODEL),
-				 errmsg("model \"%s\" already exists", mdname)));
+				 errmsg("model \"%s\" already exists in model_info", mdname)));
     }
+
+    if(SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
+        ereport(ERROR,
+				(errcode(ERRCODE_DUPLICATE_MODEL),
+				 errmsg("model \"%s\" already exists in model_layer_info", mdname)));
+    }
+
 
     // 插入新model的记录
     pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
@@ -62,23 +81,45 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     MemSet(new_record, 0, sizeof(new_record));
 	MemSet(new_record_nulls, false, sizeof(new_record_nulls));
 
-    new_record[Anum_pg_model_info_modelname - 1] = CStringGetDatum(mdname);
-    new_record[Anum_pg_model_info_createtime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
-    new_record[Anum_pg_model_info_uploadby -1 ]  =  CStringGetDatum(user);
-    new_record[Anum_pg_model_info_md5 - 1]       = CStringGetDatum(md5);
-    new_record[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(filename); // text宏别用错了
+    new_record[Anum_model_info_modelname - 1] = CStringGetDatum(mdname);
+    new_record[Anum_model_info_createtime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    new_record[Anum_model_info_uploadby -1 ]  =  CStringGetDatum(user);
+    new_record[Anum_model_info_md5 - 1]       = CStringGetDatum(md5);
+    new_record[Anum_model_info_modelpath - 1] = CStringGetTextDatum(filename); // text宏别用错了
 
     if(desc == NULL) {
-        new_record_nulls[Anum_pg_model_info_description - 1] = true;    
+        new_record_nulls[Anum_model_info_description - 1] = true;    
     }else {
-        new_record[Anum_pg_model_info_description - 1] = CStringGetTextDatum(desc);
+        new_record[Anum_model_info_description - 1] = CStringGetTextDatum(desc);
     }
 
-    new_record[Anum_pg_model_info_updatetime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    new_record[Anum_model_info_updatetime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
     tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 
     CatalogTupleInsert(pg_model_info_rel, tuple);
     table_close(pg_model_info_rel, RowExclusiveLock);
+
+    // insert model parameter
+    model_parameter_extraction(filename, &model_layer, &layer_size);
+    if(model_layer == NULL){
+        ereport(ERROR,
+				 errmsg("model layer empty"));
+    }
+
+    pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
+    
+
+    for(int16 i=1; i<=layer_size; ++i){
+        MemSet(new_layer_record, 0, sizeof(new_layer_record));
+	    MemSet(new_layer_record_nulls, false, sizeof(new_layer_record_nulls));
+        new_layer_record[Anum_model_layer_info_layermodelname-1] = CStringGetDatum(mdname);
+        new_layer_record[Anum_model_layer_info_layername-1] = CStringGetDatum(model_layer[i-1].layer_name);
+        new_layer_record[Anum_model_layer_info_layerindex-1] = Int16GetDatum(i);
+        new_layer_record[Anum_model_layer_info_parameter-1] = PointerGetDatum(model_layer[i-1].layer_parameter);
+        tuple = heap_form_tuple(RelationGetDescr(pg_model_layer_info_rel), new_layer_record, new_layer_record_nulls);
+        CatalogTupleInsert(pg_model_layer_info_rel, tuple);
+    }
+    table_close(pg_model_layer_info_rel, RowExclusiveLock);
 
     ForceSyncCommit();
 }
@@ -92,6 +133,7 @@ dropmd(ParseState *pstate, const DropmdStmt *stmt){
     // 判断是否存在该model
     char        *mdname = stmt->mdname;
     Relation	pg_model_info_rel;
+    Relation    pg_model_layer_info_rel;
     HeapTuple	tuple;
     Datum       oldfilenamedatum;
     char        *oldFilename;
@@ -100,15 +142,20 @@ dropmd(ParseState *pstate, const DropmdStmt *stmt){
     if(!SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
         ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_MODEL),
-				 errmsg("model \"%s\" does not exist", mdname)));
+				 errmsg("model \"%s\" does not exist in model_info", mdname)));
     }
 
+    if(!SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
+        ereport(ERROR,
+				(errcode(ERRCODE_UNDEFINED_MODEL),
+				 errmsg("model \"%s\" does not exist in model_layer_info", mdname)));
+    }
 
-    // // 删除model
+    // delete model_info 
     pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
     tuple = SearchSysCache1(MODELNAME,CStringGetDatum(mdname));
 
-    oldfilenamedatum = SysCacheGetAttr(MODELNAME, tuple, Anum_pg_model_info_modelpath, &isnull);
+    oldfilenamedatum = SysCacheGetAttr(MODELNAME, tuple, Anum_model_info_modelpath, &isnull);
     oldFilename = TextDatumGetCString(oldfilenamedatum);
 
     CatalogTupleDelete(pg_model_info_rel,&tuple->t_self);
@@ -116,9 +163,20 @@ dropmd(ParseState *pstate, const DropmdStmt *stmt){
     ReleaseSysCache(tuple);
     table_close(pg_model_info_rel, NoLock);
 
-    // 删除文件
-    remove(oldFilename);
+    // delete model_layer_info
+    pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
+    if(SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
+        CatCList* parameter_list = SearchSysCacheList1(LAYERMODELNAME,CStringGetDatum(mdname));
+        for(int i=0; i<parameter_list->n_members; i++){
+            HeapTuple proctup = &parameter_list->members[i]->tuple;
+            CatalogTupleDelete(pg_model_layer_info_rel,&proctup->t_self);
+        }
+        ReleaseCatCacheList(parameter_list);
+    }
+    table_close(pg_model_layer_info_rel, NoLock);
 
+    // delete model file
+    remove(oldFilename);
 }
 
 void
@@ -133,10 +191,10 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
 
     HeapTuple	tuple;
     HeapTuple	newtuple;
-	bool		nulls[Natts_pg_model_info] = {true};
-	bool		replaces[Natts_pg_model_info] = {false};
+	bool		nulls[Natts_model_info] = {true};
+	bool		replaces[Natts_model_info] = {false};
     bool        isnull;
-	Datum		values[Natts_pg_model_info];
+	Datum		values[Natts_model_info];
     char        *mdname = stmt->mdname;
     char        *desc   = stmt->desc;
     char        *md5 = stmt->md5;
@@ -146,26 +204,26 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
 
     Relation	pg_model_desc;
 
-    replaces[Anum_pg_model_info_modelpath - 1] = true;
-    values[Anum_pg_model_info_modelpath - 1] = CStringGetTextDatum(filename);
-    nulls[Anum_pg_model_info_modelpath - 1] = false;
+    replaces[Anum_model_info_modelpath - 1] = true;
+    values[Anum_model_info_modelpath - 1] = CStringGetTextDatum(filename);
+    nulls[Anum_model_info_modelpath - 1] = false;
 
-    replaces[Anum_pg_model_info_uploadby - 1] = true;
-    values[Anum_pg_model_info_uploadby - 1] = CStringGetDatum(user);
-    nulls[Anum_pg_model_info_uploadby - 1] = false;
+    replaces[Anum_model_info_uploadby - 1] = true;
+    values[Anum_model_info_uploadby - 1] = CStringGetDatum(user);
+    nulls[Anum_model_info_uploadby - 1] = false;
 
-    replaces[Anum_pg_model_info_md5 - 1] = true;
-    values[Anum_pg_model_info_md5 - 1] = CStringGetDatum(md5);
-    nulls[Anum_pg_model_info_md5 - 1] = false;
+    replaces[Anum_model_info_md5 - 1] = true;
+    values[Anum_model_info_md5 - 1] = CStringGetDatum(md5);
+    nulls[Anum_model_info_md5 - 1] = false;
 
-    replaces[Anum_pg_model_info_updatetime - 1] = true;
-    values[Anum_pg_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
-    nulls[Anum_pg_model_info_updatetime - 1] = false;
+    replaces[Anum_model_info_updatetime - 1] = true;
+    values[Anum_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    nulls[Anum_model_info_updatetime - 1] = false;
 
     if(desc != NULL) {
-        replaces[Anum_pg_model_info_description - 1] = true;
-        values[Anum_pg_model_info_description - 1] = CStringGetTextDatum(desc);
-        nulls[Anum_pg_model_info_description - 1] = false;
+        replaces[Anum_model_info_description - 1] = true;
+        values[Anum_model_info_description - 1] = CStringGetTextDatum(desc);
+        nulls[Anum_model_info_description - 1] = false;
     }
 
     // 查原来的tuple
@@ -174,11 +232,12 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
     if(!HeapTupleIsValid(tuple)) {
         ereport(ERROR,
 				(errcode(ERRCODE_UNDEFINED_MODEL),
-				 errmsg("model \"%s\" does not exist", mdname)));
+				 errmsg("model \"%s\" does not exist in model_info", mdname)));
     }
+    
 
 
-    oldfilenamedatum = SysCacheGetAttr(MODELNAME, tuple, Anum_pg_model_info_modelpath, &isnull);
+    oldfilenamedatum = SysCacheGetAttr(MODELNAME, tuple, Anum_model_info_modelpath, &isnull);
     
     oldFilename = TextDatumGetCString(oldfilenamedatum);
 
