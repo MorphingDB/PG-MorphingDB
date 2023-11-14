@@ -327,7 +327,7 @@ vector_output(PG_FUNCTION_ARGS)
 
     if(dim > MAX_VECTOR_DIM){
         ereport(ERROR,
-					(errmsg("dim is larger than 10240 dim!")));
+					(errmsg("dim is larger than 102400000 dim!")));
     }
 
     if(shape_size > MAX_VECTOR_SHAPE_SIZE){

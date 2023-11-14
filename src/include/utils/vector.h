@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define MAX_VECTOR_DIM (1024000)
+#define MAX_VECTOR_DIM (102400000)
 #define MAX_VECTOR_SHAPE_SIZE (10)
 
 typedef struct Vector

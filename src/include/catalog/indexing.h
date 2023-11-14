@@ -190,8 +190,11 @@ DECLARE_UNIQUE_INDEX(pg_largeobject_metadata_oid_index, 2996, on pg_largeobject_
 DECLARE_UNIQUE_INDEX(pg_model_info_name_index, 2030, on model_info using btree(modelname name_ops));
 #define ModelInfoNameIndex 2030
 
-DECLARE_UNIQUE_INDEX(pg_model_layer_info_name_index, 2137, on model_layer_info using btree(layermodelname name_ops, layername name_ops));
+DECLARE_UNIQUE_INDEX(pg_model_layer_info_name_index, 2137, on model_layer_info using btree(layermodelname name_ops, layername text_ops));
 #define ModelLayerInfoNameIndex 2137
+
+DECLARE_UNIQUE_INDEX(pg_base_model_info_name_index, 3432, on base_model_info using btree(basemodel name_ops));
+#define BaseModelInfoNameIndex 3432
 
 DECLARE_UNIQUE_INDEX(pg_namespace_nspname_index, 2684, on pg_namespace using btree(nspname name_ops));
 #define NamespaceNameIndexId  2684

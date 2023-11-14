@@ -344,7 +344,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <str>		copy_file_name
 				database_name model_name access_method_clause access_method attr_name
 				table_access_method_clause name cursor_name file_name
-				index_name opt_index_name cluster_index_specification description_clause
+				index_name opt_index_name cluster_index_specification base_model description_clause
 
 %type <list>	func_name handler_name qual_Op qual_all_Op subquery_Op
 				opt_class opt_inline_handler opt_validator validator_clause
@@ -616,7 +616,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 	AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC
 	ASSERTION ASSIGNMENT ASYMMETRIC AT ATTACH ATTRIBUTE AUTHORIZATION
 
-	BACKWARD BEFORE BEGIN_P BETWEEN BIGINT BINARY BIT
+	BACKWARD BASEMODEL BEFORE BEGIN_P BETWEEN BIGINT BINARY BIT
 	BOOLEAN_P BOTH BY
 
 	CACHE CALL CALLED CASCADE CASCADED CASE CAST CATALOG_P CHAIN CHAR_P
@@ -10101,13 +10101,14 @@ UpdatemdStmt:
  *****************************************************************************/	
 
 CreatemdStmt:
-			CREATE MODEL model_name PATH ICONST SCONST description_clause
+			CREATE MODEL model_name PATH ICONST SCONST base_model description_clause
 				{
 					CreatemdStmt *n = makeNode(CreatemdStmt);
 					n->mdname = $3;
 					n->looid = $5;
 					n->md5 = $6;
-					n->desc = $7;
+					n->base_model = $7;
+					n->desc = $8;
 					$$ = (Node *)n;
 				}
 		;
@@ -14807,6 +14808,12 @@ description_clause:
 			| /*EMPTY*/								{$$ = NULL ;}
 			;
 
+
+base_model:
+			BASEMODEL SCONST						{$$ = $2 ; }
+			| /*EMPTY*/								{$$ = NULL ;}
+			;
+
 name:		ColId									{ $$ = $1; };
 
 model_name:
@@ -15103,6 +15110,7 @@ unreserved_keyword:
 			| ATTACH
 			| ATTRIBUTE
 			| BACKWARD
+			| BASEMODEL
 			| BEFORE
 			| BEGIN_P
 			| BY

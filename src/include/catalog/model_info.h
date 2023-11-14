@@ -20,8 +20,8 @@ CATALOG(model_info,2023,ModelInfoRelationId)
 	NameData    uploadby;
 	NameData 	md5;				
 	text    	modelpath;
+	NameData    basemodel;
 	text 		description;
-	timestamp   updatetime;
 	/*  注意：注释只能够是这种格式  */
 #endif
     

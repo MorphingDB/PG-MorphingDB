@@ -1,6 +1,8 @@
+#include "catalog/model_info_d.h"
 #include "postgres.h"
 
 #include <fcntl.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -12,6 +14,7 @@
 #include "catalog/indexing.h"
 #include "catalog/model_info.h"
 #include "catalog/model_layer_info.h"
+#include "catalog/base_model_info.h"
 #include "commands/mdcommands.h"
 #include "common/model_md5.h"
 #include "common/relpath.h"
@@ -56,10 +59,12 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     char        *mdname = stmt->mdname;
     char        *desc   = stmt->desc;
     char        *md5 = stmt->md5;
+    char        *base_model = stmt->base_model;
     char        *user = GetUserNameFromId(GetUserId(), false);
 
     ModelLayer  *model_layer = NULL;
     uint32       layer_size = 0;
+
 
     // 先判断是否已经存在同名的model
     if(SearchSysCacheExists1(MODELNAME, CStringGetDatum(mdname))){
@@ -74,6 +79,20 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
 				 errmsg("model \"%s\" already exists in model_layer_info", mdname)));
     }
 
+    if(base_model != NULL){
+        if(strcmp(mdname, base_model) == 0){
+            ereport(ERROR,
+                    (errcode(ERRCODE_DUPLICATE_MODEL),
+                    errmsg("model name \"%s\" equals to base model", mdname)));
+        }
+        if(!SearchSysCacheExists1(BASEMODEL, CStringGetDatum(base_model))){
+            ereport(ERROR,
+                    (errcode(ERRCODE_UNDEFINED_BASE_MODEL),
+                    errmsg("base model \"%s\" not exists in base_model_info", base_model)));
+        }
+    }
+
+
 
     // 插入新model的记录
     pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
@@ -84,8 +103,28 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
     new_record[Anum_model_info_modelname - 1] = CStringGetDatum(mdname);
     new_record[Anum_model_info_createtime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
     new_record[Anum_model_info_uploadby -1 ]  =  CStringGetDatum(user);
-    new_record[Anum_model_info_md5 - 1]       = CStringGetDatum(md5);
-    new_record[Anum_model_info_modelpath - 1] = CStringGetTextDatum(filename); // text宏别用错了
+    //new_record[Anum_model_info_md5 - 1]       = CStringGetDatum(md5);
+    //new_record[Anum_model_info_modelpath - 1] = CStringGetTextDatum(filename); // text宏别用错了
+
+    if (base_model == NULL) {
+        /* 
+           new model need save md5 in model_info, 
+           base model in model_info is empty,
+           save model path in model_info
+        */
+        new_record_nulls[Anum_model_info_basemodel - 1] = true;
+        new_record[Anum_model_info_md5 - 1] = CStringGetDatum(md5);
+        new_record[Anum_model_info_modelpath - 1] = CStringGetTextDatum(filename);
+    }else {
+         /* 
+           have base model md5 is empty in model_info, 
+           base model in model_info is not empty,
+           model path in model_info is empty
+        */
+        new_record_nulls[Anum_model_info_md5 - 1] = true;
+        new_record[Anum_model_info_basemodel - 1] = CStringGetDatum(base_model);
+        new_record_nulls[Anum_model_info_modelpath - 1] = true;
+    }
 
     if(desc == NULL) {
         new_record_nulls[Anum_model_info_description - 1] = true;    
@@ -93,33 +132,35 @@ createmd(ParseState *pstate, const CreatemdStmt *stmt)
         new_record[Anum_model_info_description - 1] = CStringGetTextDatum(desc);
     }
 
-    new_record[Anum_model_info_updatetime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    //new_record[Anum_model_info_updatetime- 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
     tuple = heap_form_tuple(RelationGetDescr(pg_model_info_rel), new_record, new_record_nulls);
 
     CatalogTupleInsert(pg_model_info_rel, tuple);
     table_close(pg_model_info_rel, RowExclusiveLock);
 
-    // insert model parameter
-    model_parameter_extraction(filename, &model_layer, &layer_size);
-    if(model_layer == NULL){
-        ereport(ERROR,
-				 errmsg("model layer empty"));
-    }
+    if(base_model != NULL){
+        // insert model parameter
+        model_parameter_extraction(filename, &model_layer, &layer_size);
+        if(model_layer == NULL){
+            ereport(ERROR,
+                    errmsg("model layer empty"));
+        }
 
-    pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
-    
+        pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
+        
 
-    for(int16 i=1; i<=layer_size; ++i){
-        MemSet(new_layer_record, 0, sizeof(new_layer_record));
-	    MemSet(new_layer_record_nulls, false, sizeof(new_layer_record_nulls));
-        new_layer_record[Anum_model_layer_info_layermodelname-1] = CStringGetDatum(mdname);
-        new_layer_record[Anum_model_layer_info_layername-1] = CStringGetDatum(model_layer[i-1].layer_name);
-        new_layer_record[Anum_model_layer_info_layerindex-1] = Int16GetDatum(i);
-        new_layer_record[Anum_model_layer_info_parameter-1] = PointerGetDatum(model_layer[i-1].layer_parameter);
-        tuple = heap_form_tuple(RelationGetDescr(pg_model_layer_info_rel), new_layer_record, new_layer_record_nulls);
-        CatalogTupleInsert(pg_model_layer_info_rel, tuple);
+        for(int16 i=1; i<=layer_size; ++i){
+            MemSet(new_layer_record, 0, sizeof(new_layer_record));
+            MemSet(new_layer_record_nulls, false, sizeof(new_layer_record_nulls));
+            new_layer_record[Anum_model_layer_info_layermodelname-1] = CStringGetDatum(mdname);
+            new_layer_record[Anum_model_layer_info_layername-1] = CStringGetTextDatum(model_layer[i-1].layer_name);
+            new_layer_record[Anum_model_layer_info_layerindex-1] = Int16GetDatum(i);
+            new_layer_record[Anum_model_layer_info_parameter-1] = PointerGetDatum(model_layer[i-1].layer_parameter);
+            tuple = heap_form_tuple(RelationGetDescr(pg_model_layer_info_rel), new_layer_record, new_layer_record_nulls);
+            CatalogTupleInsert(pg_model_layer_info_rel, tuple);
+        }
+        table_close(pg_model_layer_info_rel, RowExclusiveLock);
     }
-    table_close(pg_model_layer_info_rel, RowExclusiveLock);
 
     ForceSyncCommit();
 }
@@ -145,38 +186,42 @@ dropmd(ParseState *pstate, const DropmdStmt *stmt){
 				 errmsg("model \"%s\" does not exist in model_info", mdname)));
     }
 
-    if(!SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
-        ereport(ERROR,
-				(errcode(ERRCODE_UNDEFINED_MODEL),
-				 errmsg("model \"%s\" does not exist in model_layer_info", mdname)));
-    }
-
     // delete model_info 
     pg_model_info_rel = table_open(ModelInfoRelationId, RowExclusiveLock);
     tuple = SearchSysCache1(MODELNAME,CStringGetDatum(mdname));
 
     oldfilenamedatum = SysCacheGetAttr(MODELNAME, tuple, Anum_model_info_modelpath, &isnull);
-    oldFilename = TextDatumGetCString(oldfilenamedatum);
+    // has base model
+    if(isnull){
+        oldFilename = TextDatumGetCString(oldfilenamedatum);
+        // delete model file
+        remove(oldFilename);
+    }
 
     CatalogTupleDelete(pg_model_info_rel,&tuple->t_self);
 
     ReleaseSysCache(tuple);
     table_close(pg_model_info_rel, NoLock);
 
-    // delete model_layer_info
-    pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
-    if(SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
-        CatCList* parameter_list = SearchSysCacheList1(LAYERMODELNAME,CStringGetDatum(mdname));
-        for(int i=0; i<parameter_list->n_members; i++){
-            HeapTuple proctup = &parameter_list->members[i]->tuple;
-            CatalogTupleDelete(pg_model_layer_info_rel,&proctup->t_self);
+    // has base model
+    if(isnull){
+        if(!SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
+            ereport(ERROR,
+                    (errcode(ERRCODE_UNDEFINED_MODEL),
+                    errmsg("model \"%s\" does not exist in model_layer_inf1o", mdname)));
         }
-        ReleaseCatCacheList(parameter_list);
+        // delete model_layer_info
+        pg_model_layer_info_rel = table_open(ModelLayerInfoRelationId, RowExclusiveLock);
+        if(SearchSysCacheExists1(LAYERMODELNAME, CStringGetDatum(mdname))){
+            CatCList* parameter_list = SearchSysCacheList1(LAYERMODELNAME,CStringGetDatum(mdname));
+            for(int i=0; i<parameter_list->n_members; i++){
+                HeapTuple proctup = &parameter_list->members[i]->tuple;
+                CatalogTupleDelete(pg_model_layer_info_rel,&proctup->t_self);
+            }
+            ReleaseCatCacheList(parameter_list);
+        }
+        table_close(pg_model_layer_info_rel, NoLock);
     }
-    table_close(pg_model_layer_info_rel, NoLock);
-
-    // delete model file
-    remove(oldFilename);
 }
 
 void
@@ -216,9 +261,9 @@ updatemd(ParseState *pstate, const UpdatemdStmt *stmt)
     values[Anum_model_info_md5 - 1] = CStringGetDatum(md5);
     nulls[Anum_model_info_md5 - 1] = false;
 
-    replaces[Anum_model_info_updatetime - 1] = true;
-    values[Anum_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
-    nulls[Anum_model_info_updatetime - 1] = false;
+    // replaces[Anum_model_info_updatetime - 1] = true;
+    // values[Anum_model_info_updatetime - 1] = TimestampGetDatum(GetSQLLocalTimestamp(-1));
+    // nulls[Anum_model_info_updatetime - 1] = false;
 
     if(desc != NULL) {
         replaces[Anum_model_info_description - 1] = true;

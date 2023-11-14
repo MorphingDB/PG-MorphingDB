@@ -17,7 +17,7 @@ CATALOG(model_layer_info,2121,ModelLayerInfoRelationId)
 	/* model name */
 	NameData	layermodelname;
 #ifdef CATALOG_VARLEN	
-	NameData    layername;
+	text    layername;
 	int16 	    layerindex;				
 	Vector    	parameter;
 	/*  注意：注释只能够是这种格式  */

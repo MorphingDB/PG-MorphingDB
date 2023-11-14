@@ -3112,6 +3112,7 @@ typedef struct CreatemdStmt
 	char	    *mdname;			/* name of model to create */
 	int	   		looid;		    /* large object oid */
 	char 		*md5;
+	char        *base_model;    /* base model, if empty a new model */
 	char		*desc;			/* model description */
 } CreatemdStmt;
 
