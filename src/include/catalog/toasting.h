@@ -75,6 +75,7 @@ DECLARE_TOAST(pg_trigger, 2336, 2337);
 DECLARE_TOAST(pg_ts_dict, 4169, 4170);
 DECLARE_TOAST(pg_type, 4171, 4172);
 DECLARE_TOAST(pg_user_mapping, 4173, 4174);
+DECLARE_TOAST(model_layer_info, 4187, 4188);
 
 /* shared catalogs */
 DECLARE_TOAST(pg_authid, 4175, 4176);

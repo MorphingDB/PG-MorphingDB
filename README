@@ -1,27 +1,76 @@
-PostgreSQL Database Management System
-=====================================
+# AIDB
 
-This directory contains the source code distribution of the PostgreSQL
-database management system.
+open-source ai-enhanced database。
 
-PostgreSQL is an advanced object-relational database management system
-that supports an extended subset of the SQL standard, including
-transactions, foreign keys, subqueries, triggers, user-defined types
-and functions.  This distribution also contains C language bindings.
+# Installation
 
-PostgreSQL has many language interfaces, many of which are listed here:
+compile and install with
 
-	https://www.postgresql.org/download
+```
+cd aidb
+./configure --prefix=<install_directory>
+make -j4
+make install
+```
 
-See the file INSTALL for instructions on how to build and install
-PostgreSQL.  That file also lists supported operating systems and
-hardware platforms and contains information regarding any other
-software packages that are required to build or run the PostgreSQL
-system.  Copyright and license information can be found in the
-file COPYRIGHT.  A comprehensive documentation set is included in this
-distribution; it can be read as described in the installation
-instructions.
+# Getting Started
 
-The latest version of this software may be obtained at
-https://www.postgresql.org/download/.  For more information look at our
-web site located at https://www.postgresql.org/.
+start server
+
+```
+cd <install_directory>/bin
+./initdb -D <data_directory>
+./postgres -D <data_directory> -p 5432
+```
+
+connect to server
+
+```
+cd <install_directory>/bin
+./psql -p 5432 -d postgres
+```
+
+## Import Model
+
+use create model clause to upload a model file (format as pt) to server.
+
+base_model is inner supported models, if you choose a base_model, layer values will be imported into model_layer_info.
+
+```
+-- create model
+CREATE MODEL '<model_name>' PATH '<client_path>' 
+[base_model '<base_model_name>'] 
+[DESCRIPTION <'description'>];
+
+MODIFT MODEL '<model_name>' PATH 'new_client_path' DESCRIPTION 'xxxx';
+
+DROP MODEL '<model_name>';
+
+-- see details for model
+select * from model_info;
+select * from model_layer_info;
+```
+
+## Do Prediction
+
+```
+create table image_test(user_name text not null, image_url text not null);
+
+insert into image_test(user_name, image_url)
+values
+('bob', '/tmp/pgdl/test/image/img_10.jpg'), 
+('frank', '/tmp/pgdl/test/image/img_11.jpg'), 
+('bob', '/tmp/pgdl/test/image/img_12.jpg'), 
+('vicky', '/tmp/pgdl/test/image/img_1.jpg'), 
+('frank', '/tmp/pgdl/test/image/img_2.jpg'),
+('vicky', '/tmp/pgdl/test/image/img_3.jpg'), 
+('jeff', '/tmp/pgdl/test/image/img_4.jpg'), 
+('vicky', '/tmp/pgdl/test/image/img_5.jpg'), 
+('frank', '/tmp/pgdl/test/image/img_6.jpg'),
+('alice', '/tmp/pgdl/test/image/img_7.jpg'),
+('alice', '/tmp/pgdl/test/image/img_8.jpg'),
+('jeff', '/tmp/pgdl/test/image/img_9.jpg');
+
+select predict_text('test', 'cpu', image_url) from image_test;
+```
+

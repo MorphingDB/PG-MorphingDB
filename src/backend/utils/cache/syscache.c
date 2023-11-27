@@ -74,7 +74,9 @@
 #include "catalog/pg_ts_template.h"
 #include "catalog/pg_type.h"
 #include "catalog/pg_user_mapping.h"
-#include "catalog/pg_model_info.h"
+#include "catalog/model_info.h"
+#include "catalog/model_layer_info.h"
+#include "catalog/base_model_info.h"
 #include "utils/rel.h"
 #include "utils/catcache.h"
 #include "utils/syscache.h"
@@ -513,7 +515,29 @@ static const struct cachedesc cacheinfo[] = {
 		ModelInfoNameIndex,
 		1,
 		{
-			Anum_pg_model_info_modelname,
+			Anum_model_info_modelname,
+			0,
+			0,
+			0
+		},
+		4
+	},
+	{ModelLayerInfoRelationId,
+		ModelLayerInfoNameIndex,
+		1,
+		{
+			Anum_model_layer_info_layermodelname,
+			0,
+			0,
+			0
+		},
+		4
+	},
+	{BaseModelInfoRelationId,
+		BaseModelInfoNameIndex,
+		1,
+		{
+			Anum_base_model_info_basemodel,
 			0,
 			0,
 			0

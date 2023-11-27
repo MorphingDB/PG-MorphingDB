@@ -27,10 +27,10 @@ void unloadTorchModel(const char* modelName) {
 }
 
 void debug_models(){
-    for(auto &[k, v] : models) {
-        printf("model name : %s \n", k.c_str());
-        // elog(INFO, "model name : %s\n", k) ;
-    }
+    // for(auto &[k, v] : models) {
+    //     printf("model name : %s \n", k.c_str());
+    //     // elog(INFO, "model name : %s\n", k) ;
+    // }
 }
 
 float predictWithTorchModel(const char* modelName) {

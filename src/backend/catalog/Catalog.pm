@@ -34,7 +34,8 @@ sub ParseHeader
 		'Oid'           => 'oid',
 		'NameData'      => 'name',
 		'TransactionId' => 'xid',
-		'XLogRecPtr'    => 'pg_lsn');
+		'XLogRecPtr'    => 'pg_lsn',
+		'Vector'        => 'vector');
 
 	my %catalog;
 	my $declaring_attributes = 0;

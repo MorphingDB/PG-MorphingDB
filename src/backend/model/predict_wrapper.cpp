@@ -8,6 +8,7 @@
  */
 #include "model/model_manager.h"
 #include "model/predict_wrapper.h"
+#include "utils/vector_tensor.h"
 
 #ifdef __cplusplus
 #include <sstream>
@@ -182,13 +183,14 @@ void
 infer_batch_internal(VecAggState *state, bool ret_float8)
 {
     char* model_path = nullptr;
+    char* base_model = nullptr;
     int prcsd_batch_n = state->ins->length;
     
     if(strlen(state->model) == 0){
         ereport(ERROR, (errmsg("model name is empty!")));
     }
 
-    if(!model_manager_get_model_path(&model_manager, state->model, &model_path)){
+    if(!model_manager_get_model_path(&model_manager, state->model, &model_path, &base_model)){
         ereport(ERROR, (errmsg("model not exist,can't get path!")));
     }
 
@@ -289,6 +291,7 @@ float8
 predict_float(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
+    char* base_model = nullptr;
     std::vector<torch::jit::IValue> input_tensor;
     torch::jit::IValue output_tensor;
 
@@ -301,7 +304,7 @@ predict_float(const char* model_name, const char* cuda, Args* args)
         ereport(ERROR, (errmsg("model name is empty!")));
     }
 
-    if(!model_manager_get_model_path(&model_manager, model_name, &model_path)){
+    if(!model_manager_get_model_path(&model_manager, model_name, &model_path, &base_model)){
         ereport(ERROR, (errmsg("model not exist,can't get path!")));
     }
     
@@ -309,8 +312,14 @@ predict_float(const char* model_name, const char* cuda, Args* args)
 
     
     // 1. 加载模型
-    if(!model_manager_load_model(&model_manager, model_path)){
-        ereport(ERROR, (errmsg("load model error")));
+    if(base_model == nullptr){
+        if(!model_manager_load_model(&model_manager, model_path)){
+            ereport(ERROR, (errmsg("load model error")));
+        }
+    }else{
+        if(!model_manager_load_model(&model_manager, model_path, model_name, base_model)){
+            ereport(ERROR, (errmsg("load model error")));
+        }
     }
     
     if(pg_strcasecmp(cuda, "gpu") == 0 && 
@@ -363,6 +372,7 @@ text*
 predict_text(const char* model_name, const char* cuda, Args* args)
 {
     char* model_path = nullptr;
+    char* base_model = nullptr;
     std::vector<torch::jit::IValue> input_tensor;
     torch::jit::IValue output_tensor;
 
@@ -375,7 +385,7 @@ predict_text(const char* model_name, const char* cuda, Args* args)
         ereport(ERROR, (errmsg("model name is empty!")));
     }
 
-    if(!model_manager_get_model_path(&model_manager, model_name, &model_path)){
+    if(!model_manager_get_model_path(&model_manager, model_name, &model_path, &base_model)){
         ereport(ERROR, (errmsg("model not exist,can't get path!")));
     }
     
@@ -383,7 +393,16 @@ predict_text(const char* model_name, const char* cuda, Args* args)
 
     
     // 1. 加载模型
-    if(!model_manager_load_model(&model_manager, model_path)){
+    if(base_model == nullptr){
+        if(!model_manager_load_model(&model_manager, model_path)){
+            ereport(ERROR, (errmsg("load model error")));
+        }
+    }else{
+        if(!model_manager_load_model(&model_manager, model_path, model_name, base_model)){
+            ereport(ERROR, (errmsg("load model error")));
+        }
+    }
+    if(!model_manager_load_model(&model_manager, model_path, model_name)){
         ereport(ERROR, (errmsg("load model error")));
     }
     
@@ -434,6 +453,44 @@ predict_text(const char* model_name, const char* cuda, Args* args)
     return result;
 }
 
+
+void   
+model_parameter_extraction(const char* model_path, ModelLayer** parameter_list, uint32* layer_size)
+{
+    //uint32 layer_size = 0;
+    torch::jit::script::Module model;
+    try {
+        model = torch::jit::load(model_path);
+    }
+    catch (const std::exception& e) {
+        *parameter_list = NULL;
+        ereport(ERROR, (errmsg("load model failed, error message: %s", e.what())));
+    }
+
+    
+    auto parms = model.named_parameters();
+    *layer_size = parms.size();
+    ereport(INFO, (errmsg("layer_size:%d", *layer_size)));
+    *parameter_list = (ModelLayer*)palloc((*layer_size) * sizeof(ModelLayer));
+    int index=0;
+    for(const auto& pair : parms){
+        std::string name = pair.name;
+        torch::Tensor tensor = pair.value;
+
+        (*parameter_list)[index].layer_name = (char*)palloc((name.size() + 1) * sizeof(char));
+        strcpy((*parameter_list)[index].layer_name, name.c_str());
+
+        Vector* vector = tensor_to_vector(tensor);
+        (*parameter_list)[index].layer_parameter = vector;
+
+        for(unsigned int i=0; i<vector->dim; ++i){
+            //ereport(INFO, (errmsg("vector:%f", vector->x[i])));
+        }
+
+        ereport(INFO, (errmsg("layer name:%s", (*parameter_list)[index].layer_name)));
+        index++;
+    }
+}
 
 
 

@@ -1462,11 +1462,12 @@ SendQuery(const char *query)
 				}
 				else {
 					printf("md5:%s\n",md5);
+					printf("query:%s\n",query);
 					Oid foid = do_upload(path, &own_transaction);
 					if(foid != InvalidOid) {
 
 						char *query2 = reassemble_query(query, foid, md5);
-
+						printf("query2:%s\n",query2);
 						results = PQexec(pset.db, query2);
 						ResetCancelConn();
 						OK = ProcessResult(&results);	
@@ -1482,7 +1483,7 @@ SendQuery(const char *query)
 					}
 				}
 				do_upload_finish(status,own_transaction);
-
+				pfree(md5);
 			}
 			
 		} else {

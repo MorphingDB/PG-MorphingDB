@@ -31,9 +31,9 @@ typedef struct ModelManager {
 
 // ... 其他函数声明 ...
 
-bool model_manager_load_model(ModelManager *manager, const char *model_path);
+bool model_manager_load_model(ModelManager *manager, const char *model_path, const char *model_name=NULL, const char *base_model=NULL);
 
-bool model_manager_get_model_path(ModelManager *manager, const char *model_name, char **model_path);
+bool model_manager_get_model_path(ModelManager *manager, const char *model_name, char **model_path, char **base_model);
 
 bool model_manager_get_model_md5(ModelManager *manager, const char *model_path, char **md5);
 

@@ -10704,13 +10704,13 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
 
 # predict function
 { oid => '6125', descr => 'predict function return float',
-  proname => 'pg_predict_float', prorettype => 'float8', proisstrict => 'f',
+  proname => 'predict_float', prorettype => 'float8', proisstrict => 'f',
   provariadic => 'any', proargmodes => '{i, i, v}', 
   proargtypes => 'cstring cstring any', prosrc => 'pg_predict_float' },
 
 
 { oid => '6126', descr => 'predict function return text',
-  proname => 'pg_predict_text', prorettype => 'text', proisstrict => 'f',
+  proname => 'predict_text', prorettype => 'text', proisstrict => 'f',
   provariadic => 'any', proargmodes => '{i, i, v}',
   proargtypes => 'cstring cstring any', prosrc => 'pg_predict_text' },
 
@@ -10742,6 +10742,59 @@ proargtypes => 'detection_result', prosrc => 'detc_res_send' },
   proname => 'pg_predict_batch_text', proisstrict => 'f', provariadic => 'any', 
   prorettype => 'text', proargtypes => 'cstring cstring any', proargmodes => '{i, i, v}',
   prosrc => 'aggregate_dummy' },
+
+{ oid => '6150', descr => 'I/O',
+  proname => 'vector_input', prorettype => 'vector', proargtypes => 'cstring',
+  prosrc => 'vector_input' },
+
+{ oid => '6151', descr => 'I/O',
+  proname => 'vector_output', prorettype => 'cstring', proargtypes => 'vector',
+  prosrc => 'vector_output' },
+
+{ oid => '6152', descr => 'I/O',
+  proname => 'vector_receive', prorettype => 'vector', proargtypes => 'internal',
+  prosrc => 'vector_receive' },
+
+{ oid => '6153', descr => 'I/O',
+  proname => 'vector_send', prorettype => 'bytea', proargtypes => 'vector',
+  prosrc => 'vector_send' },
+
+{ oid => '6154',
+  proname => 'vector_add', prorettype => 'vector', proargtypes => 'vector vector',
+  prosrc => 'vector_add' },
+
+{ oid => '6155',
+  proname => 'vector_sub', prorettype => 'vector', proargtypes => 'vector vector',
+  prosrc => 'vector_sub' },
+
+{ oid => '6156',
+  proname => 'vector_equal', prorettype => 'bool', proargtypes => 'vector vector',
+  prosrc => 'vector_equal' },
+
+{ oid => '6157', descr => 'convert float4[] to vector',
+  proname => 'array_to_vector', prorettype => 'vector', proargtypes => '1021',
+  prosrc => 'array_to_vector' },
+
+{ oid => '6158', descr => 'convert float8[] to vector',
+  proname => 'array_to_vector', prorettype => 'vector', proargtypes => '1022',
+  prosrc => 'array_to_vector' },
+
+{ oid => '6159', descr => 'convert integer[] to vector',
+  proname => 'array_to_vector', prorettype => 'vector', proargtypes => '1007',
+  prosrc => 'array_to_vector' },
+
+
+{ oid => '6160', descr => 'convert text to vector',
+  proname => 'text_to_vector', prorettype => 'vector', proargtypes => 'text',
+  prosrc => 'text_to_vector' },
+
+{ oid => '6161', descr => 'convert vector data to float4[]',
+  proname => 'get_vector_data', prorettype => '1021', proargtypes => 'vector',
+  prosrc => 'get_vector_data' },
+
+{ oid => '6165', descr => 'convert vector shape to float4[]',
+  proname => 'get_vector_shape', prorettype => '1007', proargtypes => 'vector',
+  prosrc => 'get_vector_shape' },
 
 ]
 

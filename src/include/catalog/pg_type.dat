@@ -603,4 +603,11 @@
   typinput => 'detc_res_in', typoutput => 'detc_res_out',
   typreceive => 'detc_res_recv', typsend => 'detc_res_send', typalign => 'i' },
 
+{ oid => '6148',
+  descr => 'vector storage',
+  typname => 'vector', typlen => '-1', typbyval => 'f', typcategory => 'A',
+  typinput => 'vector_input', typoutput => 'vector_output',
+  typreceive => 'vector_receive', typsend => 'vector_send', 
+  typalign => 'i', typstorage => 'e' },  
+
 ]
