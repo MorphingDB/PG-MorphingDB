@@ -1,6 +1,6 @@
 # AIDB
 
-open-source ai-enhanced database。
+open-source ai-enhanced database
 
 # Installation
 
@@ -48,6 +48,7 @@ DROP MODEL '<model_name>';
 
 -- see details for model
 select * from model_info;
+select * from base_model_info;
 select * from model_layer_info;
 ```
 
@@ -73,4 +74,3 @@ values
 
 select predict_text('test', 'cpu', image_url) from image_test;
 ```
-
