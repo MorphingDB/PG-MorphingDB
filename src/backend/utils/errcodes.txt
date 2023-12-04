@@ -498,3 +498,4 @@ Section: Class FF - MODEL Error
 FF000    E    ERRCODE_MODEL_ERROE                                            model_error 
 FF001    E    ERRCODE_DUPLICATE_MODEL                                        duplicate_model
 FF002    E    ERRCODE_UNDEFINED_MODEL                                        undefined_model
+FF002    E    ERRCODE_UNDEFINED_BASE_MODEL                                   undefined_base_model

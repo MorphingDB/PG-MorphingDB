@@ -20,6 +20,8 @@ extern "C" {
 #include "utils/catcache.h"
 #include "utils/vector_tensor.h"
 
+extern char pkglib_path[];
+
 ModelManager model_manager;
 
 bool 
@@ -95,12 +97,30 @@ model_manager_load_model(ModelManager *manager, const char *model_path, const ch
     
 }
 
+char* replace_model_path(char* origin_path) {
+    char                tmp_path[MAXPGPATH];
+    char                model_path_root[MAXPGPATH];
+    char                ret_path[MAXPGPATH];
+    char                *ptr;
+
+    strcpy(ret_path, origin_path);
+    snprintf(model_path_root, MAXPGPATH, "%s/../model", pkglib_path);
+    while ((ptr = strstr(ret_path, "{model_path}")) != NULL) {
+        strcpy(tmp_path, ret_path);
+        strlcpy(ret_path, tmp_path, ptr - ret_path + 1);
+        strcat(ret_path, model_path_root);
+        strcat(ret_path, tmp_path + (ptr - ret_path) + strlen("{model_path}"));
+    }
+
+    return pstrdup(ret_path);
+}
+
 bool 
 model_manager_get_model_path(ModelManager *manager, const char *model_name, char **model_path, char **base_model)
 {
     Relation            pg_model_info_rel; 
     Relation            pg_base_model_info_rel;
-    HeapTuple	        model_info_tuple;
+    HeapTuple           model_info_tuple;
     HeapTuple           base_model_info_tuple;
     Datum               path_datum;
     Datum               base_model_datum;
@@ -119,7 +139,7 @@ model_manager_get_model_path(ModelManager *manager, const char *model_name, char
     }
 
     base_model_datum = heap_getattr(model_info_tuple, Anum_model_info_basemodel, 
-                              RelationGetDescr(pg_model_info_rel), &base_model_is_null);
+                              RelationGetDescr(pg_model_info_rel), &base_model_is_null);    
     // have base model 
     if(!base_model_is_null){
         *base_model = DatumGetCString(base_model_datum);
@@ -134,14 +154,14 @@ model_manager_get_model_path(ModelManager *manager, const char *model_name, char
         }
         path_datum = heap_getattr(base_model_info_tuple, Anum_base_model_info_modelpath, 
                               RelationGetDescr(pg_base_model_info_rel), &path_is_null);
-        if(!path_is_null) *model_path = TextDatumGetCString(path_datum);  
+        if(!path_is_null) *model_path = replace_model_path(TextDatumGetCString(path_datum));  
         ReleaseSysCache(base_model_info_tuple);
         table_close(pg_base_model_info_rel, AccessShareLock);
     // new model 
     }else{
         path_datum = heap_getattr(model_info_tuple, Anum_model_info_modelpath, 
                               RelationGetDescr(pg_model_info_rel), &path_is_null);
-        if(!path_is_null) *model_path = TextDatumGetCString(path_datum);  
+        if(!path_is_null) *model_path = replace_model_path(TextDatumGetCString(path_datum));  
     }
 
     ReleaseSysCache(model_info_tuple);
@@ -154,7 +174,7 @@ bool
 model_manager_get_model_md5(ModelManager *manager, const char *model_path, char **md5)
 {
     Relation            pg_model_info_rel; 
-    HeapTuple	        tuple;
+    HeapTuple           tuple;
     Datum               md5_datum;
     bool                md5_is_null;
 
@@ -216,6 +236,7 @@ bool
 model_manager_pre_process(ModelManager *manager, const char *model_path, std::vector<torch::jit::IValue>& input_tensor, Args *args)
 {
     if(manager->module_preprocess_functions_.find(model_path) != manager->module_preprocess_functions_.end()){
+model_process_registered:
         if(manager->module_preprocess_functions_[model_path](input_tensor, args)){
             if(manager->module_handle_.find(model_path) != manager->module_handle_.end()){
                 for(auto& tensor : input_tensor){
@@ -229,6 +250,9 @@ model_manager_pre_process(ModelManager *manager, const char *model_path, std::ve
             return false;
         }
         
+    } else {
+        register_default_model();
+        goto model_process_registered;
     }
     return false;
 }

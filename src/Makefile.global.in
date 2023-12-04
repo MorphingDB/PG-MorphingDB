@@ -753,6 +753,11 @@ endif
 # Not really standard libc functions, used by the backend.
 TAS         = @TAS@
 
+# model preprocess and postprocess 
+LD_OPENCV_FLAGS = `pkg-config --libs opencv`
+LD_SENTENCEPIECE_FLAG = -lsentencepiece
+LDFLAGS += $(LD_OPENCV_FLAGS) $(LD_SENTENCEPIECE_FLAG)
+
 
 ##########################################################################
 #
