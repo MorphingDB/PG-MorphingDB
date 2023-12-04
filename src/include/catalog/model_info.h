@@ -16,12 +16,12 @@ CATALOG(model_info,2023,ModelInfoRelationId)
 	/* model name */
 	NameData	modelname;
 #ifdef CATALOG_VARLEN	
-	timestamp   createtime;
-	NameData    uploadby;
-	NameData 	md5;				
+	timestamp   createtime BKI_FORCE_NULL BKI_DEFAULT(_null_);
+	NameData    uploadby BKI_FORCE_NULL BKI_DEFAULT(_null_);
+	NameData 	md5 BKI_FORCE_NULL BKI_DEFAULT(_null_);
 	text    	modelpath;
-	NameData    basemodel;
-	text 		description;
+	NameData    basemodel BKI_FORCE_NULL BKI_DEFAULT(_null_);
+	text 		description BKI_FORCE_NULL BKI_DEFAULT(_null_);
 	/*  注意：注释只能够是这种格式  */
 #endif
     

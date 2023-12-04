@@ -9,5 +9,7 @@ typedef union {
     float8 floating;
 } Args;
 
+void register_default_model();
+char* replace_model_path(char* origin_path);
 
 #endif

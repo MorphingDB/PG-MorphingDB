@@ -1,0 +1,4 @@
+[
+{ modelname => 'defect', modelpath => '{model_path}/defect.pt'},
+{ modelname => 'sst2', modelpath => '{model_path}/sst2.pt'},
+]
