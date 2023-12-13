@@ -5,6 +5,7 @@
 #include "libpq/pqformat.h"
 #include "utils/builtins.h"
 #include "utils/array.h"
+#include "utils/palloc.h"
 #include "utils/vector.h"
 #include <stdbool.h>
 
@@ -266,7 +267,7 @@ Datum
 vector_input(PG_FUNCTION_ARGS)
 {
     char            *str = NULL;
-    float           x[MAX_VECTOR_DIM];
+    float           *x = palloc(sizeof(float) * MAX_VECTOR_DIM);
     int32           shape[MAX_VECTOR_SHAPE_SIZE];
     Vector*         vector = NULL;
     unsigned int    dim = 0;
@@ -308,6 +309,7 @@ vector_input(PG_FUNCTION_ARGS)
         vector->shape[i] = shape[i];
     }
 
+    pfree(x);
     PG_RETURN_POINTER(vector);
 }
 
