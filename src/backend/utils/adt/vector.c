@@ -487,7 +487,7 @@ text_to_vector(PG_FUNCTION_ARGS)
     Vector           *vector = NULL;
     unsigned int     dim = 0;
     int32            shape[MAX_VECTOR_SHAPE_SIZE];
-    float            x[MAX_VECTOR_DIM];
+    float            *x = palloc(sizeof(float) * MAX_VECTOR_DIM);
     unsigned int     shape_size = 0;
     unsigned int     shape_dim = 1;
 
@@ -514,6 +514,7 @@ text_to_vector(PG_FUNCTION_ARGS)
         vector->shape[i] = shape[i];
     }
 
+    pfree(x);
     PG_RETURN_POINTER(vector);
 }
 
@@ -573,6 +574,7 @@ vector_add(PG_FUNCTION_ARGS)
     Vector	        *vector_left = NULL;
     Vector          *vector_right = NULL;
     unsigned int    dim = 0;
+    unsigned int    shape_size = 0;
     Vector          *result = NULL;
 
     vector_left = PG_GETARG_VECTOR_P(0);
@@ -590,11 +592,9 @@ vector_add(PG_FUNCTION_ARGS)
     }
 
     dim = vector_left->dim;
+    shape_size = vector_left->shape_size;
 
-    result = (Vector*)palloc(VECTOR_SIZE(dim));
-    SET_VARSIZE(result, VECTOR_SIZE(dim));
-
-    result->dim = dim;
+    result = new_vector(dim, shape_size);
 
     for(int i=0; i<dim; ++i){
         result->x[i] = vector_left->x[i] + vector_right->x[i];
@@ -602,6 +602,10 @@ vector_add(PG_FUNCTION_ARGS)
             ereport(ERROR,
 					(errmsg("value out of range: overflow!")));
         }
+    }
+
+    for(int i=0; i<result->shape_size; ++i){
+        result->shape[i] = vector_left->shape[i];
     }
 
     PG_RETURN_POINTER(result);
@@ -613,6 +617,7 @@ vector_sub(PG_FUNCTION_ARGS)
     Vector	        *vector_left = NULL;
     Vector          *vector_right = NULL;
     unsigned int    dim = 0;
+    unsigned int    shape_size = 0;
     Vector          *result = NULL;
 
     vector_left = PG_GETARG_VECTOR_P(0);
@@ -630,11 +635,9 @@ vector_sub(PG_FUNCTION_ARGS)
     }
 
     dim = vector_left->dim;
+    shape_size = vector_left->shape_size;
 
-    result = (Vector*)palloc(VECTOR_SIZE(dim));
-    SET_VARSIZE(result, VECTOR_SIZE(dim));
-
-    result->dim = dim;
+    result = new_vector(dim, shape_size);
 
     for(int i=0; i<dim; ++i){
         result->x[i] = vector_left->x[i] - vector_right->x[i];
@@ -642,6 +645,10 @@ vector_sub(PG_FUNCTION_ARGS)
             ereport(ERROR,
 					(errmsg("value out of range: overflow!")));
         }
+    }
+
+    for(int i=0; i<result->shape_size; ++i){
+        result->shape[i] = vector_left->shape[i];
     }
 
     PG_RETURN_POINTER(result);
